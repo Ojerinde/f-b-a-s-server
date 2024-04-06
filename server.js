@@ -18,7 +18,7 @@ const httpServer = createServer(app);
 // Initialize io with server
 const io = new Server(httpServer, {
   cors: {
-    origin: [`http://localhost:3000`, "https://joel-project-fe.onrender.com"],
+    origin: [`http://localhost:3000`, `${process.env.CLIENT_URL}`],
     methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD"],
     credentials: true,
   },
