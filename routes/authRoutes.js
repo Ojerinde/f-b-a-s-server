@@ -1,0 +1,27 @@
+const express = require("express");
+const authController = require("../controllers/authController");
+const {
+  forgotPasswordValidator,
+  resetPasswordValidator,
+} = require("../utils/validators");
+
+const router = express.Router();
+
+router.post("/signup", authController.signup);
+router.post("/signin", authController.login);
+router.patch(
+  "/verifyEmail/:emailVerificationToken",
+  authController.verifyEmail
+);
+router.post(
+  "/forgotPassword",
+  forgotPasswordValidator,
+  authController.forgotPassword
+);
+router.patch(
+  "/resetPassword/:token",
+  resetPasswordValidator,
+  authController.resetPassword
+);
+
+module.exports = router;
