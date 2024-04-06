@@ -55,7 +55,7 @@ const sendVerificationEmail = async (user, req, res, next) => {
       message: `A verification mail has been sent to ${user.email}`,
     });
   } catch (error) {
-    console.log("Email Sent");
+    console.log("Email Sent failed");
     user.emailVerificationToken = undefined;
     user.emailVerificationTokenExpiresIn = undefined;
     await user.save({ validateBeforeSave: false });
