@@ -44,8 +44,11 @@ const sendVerificationEmail = async (user, req, res, next) => {
   await user.save({ validateBeforeSave: false }); // To save the emailVerification token and expires from the genEmailVerification method.
 
   const emailVerificationUrl = `${process.env.CLIENT_URL}/verify_email/${emailVerificationToken}`;
+  console.log("Email Verification ", emailVerificationUrl);
+
   try {
     await new Email(user, emailVerificationUrl).sendEmailVerification();
+    console.log("Email Sent");
 
     return res.status(201).json({
       success: true,
@@ -63,6 +66,7 @@ const sendVerificationEmail = async (user, req, res, next) => {
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
+  console.log("Signing up for ", req.body.email);
   // 1. Check if user exist
   const checkUser = await User.findOne({ email: req.body.email });
   if (checkUser) {
