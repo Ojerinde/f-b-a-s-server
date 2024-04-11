@@ -41,6 +41,11 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     if (!student.courses.includes(course._id)) {
       student.courses.push(course._id); // Add the current course to the array of courses
       await student.save();
+    } else {
+      return socket.emit("enroll_feedback", {
+        message: `Student with Matric No. ${student.matricNo} has been enrolled before`,
+        error: true,
+      });
     }
   }
 
@@ -48,9 +53,13 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
   course.students.push(student._id);
   await course.save();
 
-  // // TEST without ESP 32 Start 
+  // // TEST without ESP 32 Start
   // // Send response to the frontend with success message
-  // return socket.emit("enroll_feedback", "Enrollment Success");
+  // return socket.emit("enroll_feedback", {
+  //   message: `${student.matricNo} is successfully enrolled`,
+  //   error: false,
+  // });
+
   // // TEST End
 
   // Emit an 'enroll' event to ESP32 device
@@ -68,10 +77,16 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
       await course.save();
 
       // Send response to the frontend with error message
-      return socket.emit("enroll_feedback", "Enrollment failed");
+      return socket.emit("enroll_feedback", {
+        message: `Enrollment for student with Matric No. ${student.matricNo} failed`,
+        error: true,
+      });
     } else {
       // Send response to the frontend with success message
-      return socket.emit("enroll_feedback", "Enrollment Success");
+      return socket.emit("enroll_feedback", {
+        message: `${student.matricNo} is successfully enrolled`,
+        error: false,
+      });
     }
   });
 });

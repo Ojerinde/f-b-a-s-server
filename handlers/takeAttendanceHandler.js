@@ -2,7 +2,10 @@ const { Course, Student, Attendance } = require("../models/attendanceModel");
 const catchAsync = require("../utils/catchAsync");
 
 exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
-  console.log("Started attendance marking process with Websocket for", data);
+  console.log(
+    "Started attendance marking process with Websocket for",
+    data.matricNo
+  );
 
   const { courseCode, matricNo } = data;
 
@@ -13,15 +16,18 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
   const student = await Student.findOne({ matricNo });
 
   if (!student) {
-    return socket.emit("attendance_feedback", "Student not found");
+    return socket.emit("attendance_feedback", {
+      message: `Student not found`,
+      error: true,
+    });
   }
 
   // Check if the student is enrolled in the course
   if (!student.courses.includes(course._id)) {
-    return socket.emit(
-      "attendance_feedback",
-      "Student is not enrolled in the course"
-    );
+    return socket.emit("attendance_feedback", {
+      message: `Student is not enrolled in the course`,
+      error: true,
+    });
   }
 
   // 2 minute for Development
@@ -40,11 +46,22 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
     console.log("Existing Attendance");
     // Check if the student has already been marked present
     if (existingAttendance.studentsPresent.includes(student._id)) {
-      return socket.emit(
-        "attendance_feedback",
-        "Attendance has already been marked for this student today"
-      );
+      return socket.emit("attendance_feedback", {
+        message: `Attendance has already been marked for ${student.matricNo} today`,
+        error: true,
+      });
     } else {
+      // // TEST Start
+      // existingAttendance.studentsPresent.push(student._id);
+      // await existingAttendance.save();
+
+      // // Emit feedback to indicate successful attendance marking
+      // return socket.emit("attendance_feedback", {
+      //   message: `Attendance marked successfully for ${student.matricNo}`,
+      //   error: false,
+      // });
+      // Start End
+
       // Emit the event to the ESP 32 here as well
       // Emit a 'take_attendance' event to ESP32 device
       socket.emit("take_attendance", { courseCode, matricNo });
@@ -54,10 +71,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
         console.log("Attendance feedback received:", feedback);
         // If feedback indicates an error, send response to the frontend
         if (feedback.error) {
-          return socket.emit(
-            "attendance_feedback",
-            `Error occurred during attendance marking: ${feedback.error}`
-          );
+          return socket.emit("attendance_feedback", {
+            message: `Error occurred during attendance marking: ${feedback.error}`,
+            error: true,
+          });
         } else {
           // If feedback indicates success, send response to the frontend
           // Update the existing attendance record to include the student
@@ -65,14 +82,16 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
           await existingAttendance.save();
 
           // Emit feedback to indicate successful attendance marking
-          return socket.emit(
-            "attendance_feedback",
-            `Attendance marked successfully for ${student.matricNo}`
-          );
+          return socket.emit("attendance_feedback", {
+            message: `Attendance marked successfully for ${student.matricNo}`,
+            error: false,
+          });
         }
       });
     }
   }
+  const today = new Date();
+
   // // TEST without ESP32 start
   // // If feedback indicates success, send response to the frontend
   // // Create a new attendance record for the current date
@@ -87,10 +106,11 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
   // course.attendance.push(newAttendance._id);
   // await course.save();
 
-  // return socket.emit(
-  //   "attendance_feedback",
-  //   `Attendance marked successfully ${student.matricNo}`
-  // );
+  // return socket.emit("attendance_feedback", {
+  //   message: `Attendance marked successfully for ${student.matricNo}`,
+  //   error: false,
+  // });
+
   // // TEST End
 
   // Emit a 'take_attendance' event to ESP32 device
@@ -101,10 +121,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
     console.log("Attendance feedback received:", feedback);
     // If feedback indicates an error, send response to the frontend
     if (feedback.error) {
-      return socket.emit(
-        "attendance_feedback",
-        `Error occurred during attendance marking: ${feedback.error}`
-      );
+      return socket.emit("attendance_feedback", {
+        message: `Error occurred during attendance marking: ${feedback.error}`,
+        error: true,
+      });
     } else {
       // If feedback indicates success, send response to the frontend
       // Create a new attendance record for the current date
@@ -119,10 +139,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
       course.attendance.push(newAttendance._id);
       await course.save();
 
-      return socket.emit(
-        "attendance_feedback",
-        `Attendance marked successfully`
-      );
+      return socket.emit("attendance_feedback", {
+        message: `Attendance marked successfully ${student.matricNo}`,
+        error: false,
+      });
     }
   });
 });
