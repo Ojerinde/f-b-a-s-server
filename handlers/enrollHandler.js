@@ -49,10 +49,6 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     }
   }
 
-  // Add the student to the course's list of enrolled students
-  course.students.push(student._id);
-  await course.save();
-
   // // TEST without ESP 32 Start
   // // Send response to the frontend with success message
   // return socket.emit("enroll_feedback", {
@@ -73,8 +69,6 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     if (feedback.error) {
       // Rollback actions: Delete the created student and remove from course
       await Student.findByIdAndDelete(student._id);
-      course.students.pull(student._id);
-      await course.save();
 
       // Send response to the frontend with error message
       return socket.emit("enroll_feedback", {
@@ -82,6 +76,9 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
         error: true,
       });
     } else {
+      // Add the student to the course's list of enrolled students
+      course.students.push(student._id);
+      await course.save();
       // Send response to the frontend with success message
       return socket.emit("enroll_feedback", {
         message: `${student.matricNo} is successfully enrolled`,
