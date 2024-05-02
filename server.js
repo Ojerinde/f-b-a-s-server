@@ -11,6 +11,7 @@ const {
 const {
   deleteEnrolledStudentsWithWebsocket,
 } = require("./handlers/deleteEnrolledStudentHandler");
+const { esp32DetailsWithWebsocket } = require("./handlers/esp32DetailsHandler");
 
 const PORT = process.env.PORT || 8080;
 
@@ -37,6 +38,9 @@ io.on("connection", (socket) => {
   socket.on("delete_enrolled_students", (data) =>
     deleteEnrolledStudentsWithWebsocket(socket, data)
   );
+
+  // Handle fetch esp32 details with websocket from the UI
+  socket.on("esp32_details", (data) => esp32DetailsWithWebsocket(socket, data));
 });
 
 connectToMongoDB()

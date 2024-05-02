@@ -111,7 +111,6 @@ exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
   const attendanceRecords = await Attendance.find({
     course: course._id,
   }).populate("studentsPresent");
-  console.log("attendanceRecords", attendanceRecords);
 
   res.status(200).json({ attendanceRecords });
 });
