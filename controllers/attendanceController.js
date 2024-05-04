@@ -129,11 +129,126 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
   // Delete attendance records for the course
   await Attendance.deleteMany({ course: course._id });
 
+  // Find all students enrolled in the course
+  const students = await Student.find({ courses: course._id });
+
+  // Remove the course reference from the courses array for each student
+  await Promise.all(
+    students.map(async (student) => {
+      student.courses = student.courses.filter(
+        (courseId) => courseId.toString() !== course._id.toString()
+      );
+      await student.save();
+    })
+  );
+
   // Remove enrolled students from the course
   course.students = [];
 
   // Save the updated course without enrolled students
   await course.save();
 
-  res.status(200).json({ message: "Course data has been resetted" });
+  res
+    .status(200)
+    .json({ message: `Course data for ${courseCode} has been resetted` });
+});
+
+// Endpoint for disenroll student for a course
+exports.disenrollStudent = catchAsync(async (req, res, next) => {
+  const { courseCode, matricNo } = req.params;
+  console.log("courseCode", courseCode, matricNo);
+
+  // Find the course by its course code
+  const course = await Course.findOne({ courseCode }).populate("students");
+
+  if (!course) {
+    return res.status(404).json({ message: "Course not found" });
+  }
+
+  // Filter out the disenrolled student from the course's students list
+  course.students = course.students.filter(
+    (stu) => stu.matricNo !== matricNo.replace("_", "/")
+  );
+
+  // Save the updated course with the removed student
+  await course.save();
+
+  // Send the updated list of students as a response
+  res.status(200).json({
+    message: `Student with ${matricNo.replace(
+      "_",
+      "/"
+    )} has been disenrolled successfully`,
+    students: course.students,
+  });
+});
+
+// Endpoint for disenroll student for a course
+exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
+  const { courseCode, matricNo } = req.params;
+  console.log("courseCode", courseCode, matricNo);
+
+  // Step 1: Find the student by matriculation number and populate the courses field
+  const student = await Student.findOne({
+    matricNo: matricNo.replace("_", "/"),
+  }).populate({
+    path: "courses",
+    populate: [
+      {
+        path: "students",
+        model: "Student",
+      },
+      {
+        path: "lecturer",
+        model: "Lecturer",
+      },
+    ],
+  });
+
+  if (!student) {
+    return new AppError("Student not found", 404);
+  }
+
+  // Initialize variables to store overall attendance details
+  let totalAttendanceCount = 0;
+  let totalPossibleAttendanceCount = 0;
+
+  // Step 2: Compute attendance for each course
+  const courseAttendances = await Promise.all(
+    student.courses.map(async (course) => {
+      // Fetch attendance records for the course and student
+      const attendanceRecords = await Attendance.find({
+        course: course._id,
+        studentsPresent: student._id,
+      });
+
+      // Compute attendance percentage for the course
+      const attendancePercentage =
+        (attendanceRecords.length / course.attendance.length) * 100;
+
+      // Update overall attendance details
+      totalAttendanceCount += attendanceRecords.length;
+      totalPossibleAttendanceCount += course.attendance.length;
+
+      // Return course attendance details
+      return {
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+        attendancePercentage,
+      };
+    })
+  );
+
+  // Step 3: Compute overall attendance for the student
+  const overallAttendancePercentage =
+    (totalAttendanceCount / totalPossibleAttendanceCount) * 100;
+
+  console.log("courseAttendances", student.courses);
+
+  // // Return results
+  res.status(200).json({
+    courses: student.courses,
+    courseAttendances,
+    overallAttendancePercentage,
+  });
 });

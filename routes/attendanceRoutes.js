@@ -17,8 +17,17 @@ router.get(
 );
 
 router.delete(
+  "/courses/:courseCode/disenroll/:matricNo",
+  attendanceController.disenrollStudent
+);
+router.delete(
   "/courses/:courseCode/reset",
   attendanceController.deleteCourseData
+);
+
+router.get(
+  "/courses/:courseCode/:matricNo",
+  attendanceController.getStudentOtherDetails
 );
 
 module.exports = router;
