@@ -51,16 +51,16 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
         error: true,
       });
     } else {
-      // // TEST Start
-      // existingAttendance.studentsPresent.push(student._id);
-      // await existingAttendance.save();
+      //// TEST Start////
+      existingAttendance.studentsPresent.push(student._id);
+      await existingAttendance.save();
 
-      // // Emit feedback to indicate successful attendance marking
-      // return socket.emit("attendance_feedback", {
-      //   message: `Attendance marked successfully for ${student.matricNo}`,
-      //   error: false,
-      // });
-      // Start End
+      // Emit feedback to indicate successful attendance marking
+      return socket.emit("attendance_feedback", {
+        message: `Attendance marked successfully for ${student.matricNo}`,
+        error: false,
+      });
+      //// TEST End ////
 
       // Emit the event to the ESP 32 here as well
       // Emit a 'take_attendance' event to ESP32 device
@@ -92,26 +92,26 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
   }
   const today = new Date();
 
-  // // TEST without ESP32 start
-  // // If feedback indicates success, send response to the frontend
-  // // Create a new attendance record for the current date
-  // const newAttendance = new Attendance({
-  //   course: course._id,
-  //   date: today,
-  //   studentsPresent: [student._id],
-  // });
-  // await newAttendance.save();
+  //// TEST without ESP32 start /////
+  // If feedback indicates success, send response to the frontend
+  // Create a new attendance record for the current date
+  const newAttendance = new Attendance({
+    course: course._id,
+    date: today,
+    studentsPresent: [student._id],
+  });
+  await newAttendance.save();
 
-  // // Update the attendance property in the Course schema
-  // course.attendance.push(newAttendance._id);
-  // await course.save();
+  // Update the attendance property in the Course schema
+  course.attendance.push(newAttendance._id);
+  await course.save();
 
-  // return socket.emit("attendance_feedback", {
-  //   message: `Attendance marked successfully for ${student.matricNo}`,
-  //   error: false,
-  // });
+  return socket.emit("attendance_feedback", {
+    message: `Attendance marked successfully for ${student.matricNo}`,
+    error: false,
+  });
 
-  // // TEST End
+  ///// TEST End /////
 
   // Emit a 'take_attendance' event to ESP32 device
   socket.emit("take_attendance", { courseCode, matricNo });

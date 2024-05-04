@@ -7,19 +7,18 @@ router.post("/lecturers", attendanceController.createLecturer);
 router.get("/courses/:lecturerEmail", attendanceController.getLecturerCourses);
 
 router.get(
-  "/courses/attendance/:courseCode",
+  "/courses/:courseCode/attendance",
   attendanceController.getAttendanceRecords
 );
 
 router.get(
-  "/courses/enroll/:courseCode",
+  "/courses/:courseCode/enroll",
   attendanceController.getEnrolledStudents
 );
-// Using Websocket for these in the server file
-// router.post("/courses/attendance", attendanceController.takeAttendance);
-// router.post(
-//   "/courses/enroll/:lecturerEmail",
-//   attendanceController.enrollStudent
-// );
+
+router.delete(
+  "/courses/:courseCode/reset",
+  attendanceController.deleteCourseData
+);
 
 module.exports = router;

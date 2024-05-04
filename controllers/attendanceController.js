@@ -114,3 +114,26 @@ exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ attendanceRecords });
 });
+
+// Endpoint for deleting attendance records and enrolled students for a course
+exports.deleteCourseData = catchAsync(async (req, res, next) => {
+  const { courseCode } = req.params;
+
+  // Find the course by its course code
+  const course = await Course.findOne({ courseCode });
+
+  if (!course) {
+    return new AppError("Course not found", 404);
+  }
+
+  // Delete attendance records for the course
+  await Attendance.deleteMany({ course: course._id });
+
+  // Remove enrolled students from the course
+  course.students = [];
+
+  // Save the updated course without enrolled students
+  await course.save();
+
+  res.status(200).json({ message: "Course data has been resetted" });
+});

@@ -28,6 +28,12 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
 
   // Find or create a student by matricNo
   let student = await Student.findOne({ matricNo });
+  if (student && student.matricNo === matricNo && student.name !== name) {
+    return socket.emit("enroll_feedback", {
+      message: `Matric No. ${student.matricNo} has been used by another student`,
+      error: true,
+    });
+  }
 
   if (!student) {
     student = new Student({
@@ -49,14 +55,17 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     }
   }
 
-  // // TEST without ESP 32 Start
-  // // Send response to the frontend with success message
-  // return socket.emit("enroll_feedback", {
-  //   message: `${student.matricNo} is successfully enrolled`,
-  //   error: false,
-  // });
+  // TEST without ESP 32 Start
+  // Add the student to the course's list of enrolled students
+  course.students.push(student._id);
+  await course.save();
+  // Send response to the frontend with success message
+  return socket.emit("enroll_feedback", {
+    message: `${student.matricNo} is successfully enrolled`,
+    error: false,
+  });
 
-  // // TEST End
+  // TEST End
 
   // Emit an 'enroll' event to ESP32 device
   socket.emit("enroll", { name, matricNo, courseCode });

@@ -29,6 +29,8 @@ const createSendToken = (user, statusCode, req, res) => {
 
   //  Remove password from the output
   user.password = undefined;
+  user.verified = undefined;
+  user.__v = undefined;
 
   return res.status(statusCode).json({
     success: true,
@@ -129,15 +131,6 @@ exports.login = catchAsync(async (req, res, next) => {
   const claimedUser = await User.findOne({ email }).select(
     "+password +verified"
   );
-
-  if (!claimedUser.verified) {
-    return next(
-      new AppError(
-        `Your email has not been verified yet. Please check your inbox for a verification email`
-      )
-    );
-  }
-
   if (
     !claimedUser ||
     !(await claimedUser.correctPassword(claimedCorrectPassword))
@@ -146,6 +139,14 @@ exports.login = catchAsync(async (req, res, next) => {
       new AppError(
         "Oh dear! Seems like either your email or password is wrong.",
         400
+      )
+    );
+  }
+
+  if (!claimedUser?.verified) {
+    return next(
+      new AppError(
+        `Your email has not been verified yet. Please check your inbox for a verification email`
       )
     );
   }

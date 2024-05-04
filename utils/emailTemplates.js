@@ -6,12 +6,12 @@ exports.generateEmailVerificationHTML = function (
       <!DOCTYPE html>
       <html>
       <head>
-          <title>Attendance System Email Verification</title>
+          <title>Automated Biometric Based Attendance System Email Verification</title>
       </head>
       <body>
-          <h1>Almost done, ${firstName}.</h1>
-          <p>Click the link below to verify your email:</p>
-          <a href=${emailVerificationURL}>Verify Email</a>
+            <h1 style="color: #181a40; font-size: 24px; font-weight: bold;">Hello, ${firstName}.</h1>
+            <p style="color: #666; font-size: 16px;">Click the link below to verify your email:</p>
+            <a href="${emailVerificationURL}" style="background-color: #007bff; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px;">Verify Email</a>
       </body>
       </html>
       `;
@@ -22,19 +22,19 @@ exports.generateResetPasswordHTML = function (firstName, resetPasswordUrl) {
       <!DOCTYPE html>
       <html>
       <head>
-          <title>Attendance System  Account Password Reset</title>
+            <title>Automated Biometric Based Attendance System Email Verification</title>
       </head>
       <body>
-          <h1>Password Reset</h1>
-          <p>Hello ${firstName},</p>
-          <p>We received a request to reset your password. If you did not make this request, please ignore this email.</p>
-          <p>To reset your password, please click the following link:</p>
-          <a href=${resetPasswordUrl}>Reset Password</a>
-          <p>If the above link doesn't work, copy and paste the following URL into your browser's address bar:</p>
-          <p>${resetPasswordUrl}</p>
-          <p>This link will expire in 10 minutes.</p>
-          <p>Thank you,</p>
-          <p>Attendance System</p>
+      <h1 style="color: #181a40; font-size: 24px; font-weight: bold;">Password Reset</h1>
+      <p style="color: #666; font-size: 16px;">Hello ${firstName},</p>
+      <p style="color: #666; font-size: 16px;">We received a request to reset your password. If you did not make this request, please ignore this email.</p>
+      <p style="color: #666; font-size: 16px;">To reset your password, please click the following link:</p>
+      <a href="${resetPasswordUrl}" style="background-color: #007bff; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px; margin-bottom: 10px;">Reset Password</a>
+      <p style="color: #666; font-size: 16px;">If the above link doesn't work, copy and paste the following URL into your browser's address bar:</p>
+      <p style="color: #666; font-size: 16px; margin-bottom: 10px;">${resetPasswordUrl}</p>
+      <p style="color: #666; font-size: 16px;">This link will expire in 10 minutes.</p>
+      <p style="color: #666; font-size: 16px;">Thank you,</p>
+      <p style="color: #666; font-size: 16px;">Attendance System</p>
       </body>
       </html>
       `;
@@ -46,12 +46,12 @@ exports.generateResetPasswordSuccessHTML = function () {
       <head>
           <title>Password Reset Successful</title>
       </head>
-      <body>
-          <h1>Password Reset Successful</h1>
-          <p>Your password has been successfully reset.</p>
-          <p>You can now use your new password to log in.</p>
-          <p>If you have any further questions or concerns, please contact our support team.</p>
-          <p>Thank you for using Attendance System!</p>
+      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+            <h1 style="color: #333; font-size: 24px; font-weight: bold; margin-bottom: 10px;">Password Reset Successful</h1>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Your password has been successfully reset.</p>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">You can now use your new password to log in.</p>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">If you have any further questions or concerns, please contact our support team.</p>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for using Attendance System!</p>
       </body>
       </html>
       `;
