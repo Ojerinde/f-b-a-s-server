@@ -16,10 +16,12 @@ const { esp32DetailsWithWebsocket } = require("./handlers/esp32DetailsHandler");
 const PORT = process.env.PORT || 8080;
 
 const httpServer = createServer(app);
+
 // Initialize io with server
 const io = new Server(httpServer, {
   cors: {
-    origin: [`http://localhost:3000`, `https://f-b-a-s-client.vercel.app`],
+    // origin: [`http://localhost:3000`, `https://f-b-a-s-client.vercel.app`],
+    origin: true,
     methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD"],
     credentials: true,
   },
