@@ -50,8 +50,8 @@ exports.generateResetPasswordSuccessHTML = function () {
             <h1 style="color: #333; font-size: 24px; font-weight: bold; margin-bottom: 10px;">Password Reset Successful</h1>
             <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Your password has been successfully reset.</p>
             <p style="color: #666; font-size: 16px; margin-bottom: 10px;">You can now use your new password to log in.</p>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">If you have any further questions or concerns, please contact our support team.</p>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for using Attendance System!</p>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
+            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for choosing Attendance System!</p>
       </body>
       </html>
       `;
@@ -65,9 +65,9 @@ exports.generateEnrollmentSuccessHTML = function (courseCode) {
           </head>
           <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
                 <h1 style="color: #333; font-size: 24px; font-weight: bold; margin-bottom: 10px;">Successful Enrollment</h1>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">You have been enrolled for ${courseCode}.</p>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">If you have any further questions or concerns, please contact our support team.</p>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for using Attendance System!</p>
+                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">YYou have successfully been enrolled for ${courseCode}.</p>
+                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
+                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for choosing Attendance System!</p>
           </body>
           </html>
           `;
