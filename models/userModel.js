@@ -5,6 +5,10 @@ const validator = require("validator");
 const { isPasswordValid } = require("../utils/validators");
 
 const userSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, "Title is required"],
+  },
   name: {
     type: String,
     required: [true, "Name is required"],

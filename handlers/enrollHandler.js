@@ -1,5 +1,6 @@
 const { Lecturer, Course, Student } = require("../models/attendanceModel");
 const catchAsync = require("../utils/catchAsync");
+const Email = require("../utils/email");
 
 // Endpoint for enrolling a student into a course with Websocket.
 exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
@@ -35,15 +36,22 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     });
   }
 
+  const studentEmail = `${student.matricNo.replace(
+    "/",
+    "-"
+  )}@students.unilorin.edu.ng`;
+  console.log("studentEmail: ", studentEmail);
+
   if (!student) {
     student = new Student({
       name,
+      email: studentEmail,
       matricNo,
       courses: [course._id],
     });
     await student.save();
   } else {
-    // If the student already exists, check if the current course is already enrolled
+    // If the student already exists, check if the current course has been already enrolled for
     if (!student.courses.includes(course._id)) {
       student.courses.push(course._id); // Add the current course to the array of courses
       await student.save();
@@ -59,6 +67,7 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
   // Add the student to the course's list of enrolled students
   course.students.push(student._id);
   await course.save();
+  await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
   // Send response to the frontend with success message
   return socket.emit("enroll_feedback", {
     message: `${student.matricNo} is successfully enrolled`,

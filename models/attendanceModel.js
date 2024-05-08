@@ -25,6 +25,7 @@ const courseSchema = new Schema({
 // Define schema for Student
 const studentSchema = new Schema({
   name: String,
+  email: String,
   matricNo: String,
   courses: [{ type: Schema.Types.ObjectId, ref: "Course" }],
 });

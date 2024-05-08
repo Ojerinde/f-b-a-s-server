@@ -5,6 +5,7 @@ const {
   generateEmailVerificationHTML,
   generateResetPasswordHTML,
   generateResetPasswordSuccessHTML,
+  generateEnrollmentSuccessHTML,
 } = require("./emailTemplates");
 
 class Email {
@@ -58,6 +59,12 @@ class Email {
     await this.send(
       generateEmailVerificationHTML(this.firstName, this.url),
       "Email Verification Link"
+    );
+  }
+  async sendEnrollmentSuccessful(courseCode) {
+    await this.send(
+      generateEnrollmentSuccessHTML(courseCode),
+      "Enrollment Successful"
     );
   }
 

@@ -127,13 +127,14 @@ exports.login = catchAsync(async (req, res, next) => {
       )
     );
 
-  // 2. Check if the user exist anf confirm the password
+  // 2. Check if the user exists and is active, confirm the password
   const claimedUser = await User.findOne({ email }).select(
-    "+password +verified"
+    "+password +verified +active"
   );
   if (
     !claimedUser ||
-    !(await claimedUser.correctPassword(claimedCorrectPassword))
+    !(await claimedUser.correctPassword(claimedCorrectPassword)) ||
+    !claimedUser.active
   ) {
     return next(
       new AppError(
@@ -223,6 +224,71 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     return next(
       new AppError("There was an error sending the email. Try again later!"),
       500
+    );
+  }
+});
+
+exports.deactivateAccount = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  // 1. Get the user
+  const user = await User.findOne({ email });
+
+  // 2. If user exists, deactivate the account
+  if (user) {
+    user.active = false;
+    await user.save();
+    res.status(200).json({
+      status: "success",
+      message: "Account deactivated successfully",
+    });
+  } else {
+    return next(
+      new AppError(
+        `User with email, ${email} does not exist. Please check the email and try again.`
+      )
+    );
+  }
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { email, oldPassword, newPassword, confirmNewPassword } = req.body;
+
+  // 1. Get the User
+  const user = await User.findOne({ email }).select("+password");
+
+  // 2. Check the provided password
+  if (!(await user.correctPassword(oldPassword))) {
+    return next(new AppError("Old password is incorrect!", 401));
+  }
+
+  // 3. Update password
+  user.password = newPassword;
+  user.confirmPassword = confirmNewPassword;
+  await user.save({ validateBeforeSave: true });
+
+  // 4. Log user in, send JWT
+  createSendToken(user, 200, req, res);
+});
+
+exports.reactivateAccount = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // 1. Get the User
+  const user = await User.findOne({ email }).select("+password");
+
+  if (user) {
+    user.active = true;
+    await user.save();
+    res.status(200).json({
+      status: "success",
+      message: "Account reactivated successfully",
+    });
+  } else {
+    return next(
+      new AppError(
+        `User with email, ${email} does not exist. Please check the email and try again.`
+      )
     );
   }
 });
