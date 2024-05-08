@@ -75,6 +75,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   // 2. Create a user, set verify to false until the user verify the email.
   const unverifiedUser = await User.create({
     name: req.body.name,
+    title: req.body.title,
     email: req.body.email,
     password: req.body.password,
     confirmPassword: req.body.confirmPassword,

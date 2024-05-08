@@ -36,11 +36,9 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     });
   }
 
-  const studentEmail = `${student.matricNo.replace(
-    "/",
-    "-"
-  )}@students.unilorin.edu.ng`;
-  console.log("studentEmail: ", studentEmail);
+  const studentEmail = `${data.matricNo
+    .replace("/", "-")
+    .toLowerCase()}@students.unilorin.edu.ng`;
 
   if (!student) {
     student = new Student({
