@@ -62,6 +62,8 @@ class Email {
     );
   }
   async sendEnrollmentSuccessful(courseCode) {
+    console.log("Sending enrollment successful email for", courseCode);
+
     await this.send(
       generateEnrollmentSuccessHTML(courseCode),
       "Enrollment Successful"
