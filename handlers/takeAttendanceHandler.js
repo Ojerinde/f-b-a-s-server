@@ -54,10 +54,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
     //   // Update the attendance property in the Course schema
     //   course.attendance.push(newAttendance._id);
     //   await course.save();
-    //   return socket.emit("attendance_record_feedback", {
-    //     message: `Attendance record has been saved`,
-    //     error: false,
-    //   });
+    // return socket.emit("attendance_recorded", {
+    //   message: "Attendance record has been saved successfully",
+    //   error: false,
+    // });
     // }, 2000);
     // //// Test End ////
 
@@ -91,6 +91,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (socket, data) => {
       // Update the attendance property in the Course schema
       course.attendance.push(newAttendance._id);
       await course.save();
+      return socket.emit("attendance_recorded", {
+        message: "Attendance record has been saved successfully",
+        error: false,
+      });
     });
   }
 });

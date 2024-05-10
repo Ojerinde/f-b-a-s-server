@@ -22,6 +22,14 @@ const courseSchema = new Schema({
   attendance: [{ type: Schema.Types.ObjectId, ref: "Attendance" }],
 });
 
+// Define schema for Device
+const deviceSchema = new Schema({
+  location: {
+    type: String,
+    required: [true, "Location is required"],
+  },
+});
+
 // Define schema for Student
 const studentSchema = new Schema({
   name: String,
@@ -43,10 +51,12 @@ const Lecturer = mongoose.model("Lecturer", lecturerSchema);
 const Course = mongoose.model("Course", courseSchema);
 const Student = mongoose.model("Student", studentSchema);
 const Attendance = mongoose.model("Attendance", attendanceSchema);
+const Device = mongoose.model("Device", deviceSchema);
 
 module.exports = {
   Lecturer,
   Course,
   Student,
   Attendance,
+  Device,
 };

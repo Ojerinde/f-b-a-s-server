@@ -8,9 +8,9 @@ const { enrollStudentWithWebsocket } = require("./handlers/enrollHandler");
 const {
   takeAttendanceWithWebsocket,
 } = require("./handlers/takeAttendanceHandler");
-const {
-  deleteEnrolledStudentsWithWebsocket,
-} = require("./handlers/deleteEnrolledStudentHandler");
+// const {
+//   deleteEnrolledStudentsWithWebsocket,
+// } = require("./handlers/deleteEnrolledStudentHandler");
 const { esp32DetailsWithWebsocket } = require("./handlers/esp32DetailsHandler");
 
 const PORT = process.env.PORT || 8080;
@@ -39,10 +39,10 @@ io.on("connection", (socket) => {
   // Handle attendance with websocket from the UI
   socket.on("attendance", (data) => takeAttendanceWithWebsocket(socket, data));
 
-  // Handle attendance with websocket from the UI
-  socket.on("delete_enrolled_students", (data) =>
-    deleteEnrolledStudentsWithWebsocket(socket, data)
-  );
+  // // Handle attendance with websocket from the UI
+  // socket.on("delete_enrolled_students", (data) =>
+  //   deleteEnrolledStudentsWithWebsocket(socket, data)
+  // );
 
   // Handle fetch esp32 details with websocket from the UI
   socket.on("esp32_details", (data) => esp32DetailsWithWebsocket(socket, data));

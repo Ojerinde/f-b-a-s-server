@@ -13,6 +13,7 @@ exports.esp32DetailsWithWebsocket = catchAsync(async (socket, data) => {
   //     isConnectedToInternet: true,
   //     isCharging: false,
   //     isFingerprintActive: true,
+  //     location: "ELT"
   //   },
   //   error: false,
   // };

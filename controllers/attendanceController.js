@@ -5,6 +5,7 @@ const {
   Course,
   Student,
   Attendance,
+  Device,
 } = require("../models/attendanceModel");
 
 exports.createLecturer = catchAsync(async (req, res, next) => {
