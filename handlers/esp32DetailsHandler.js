@@ -4,27 +4,28 @@ const catchAsync = require("../utils/catchAsync");
 exports.esp32DetailsWithWebsocket = catchAsync(async (socket, data) => {
   console.log("Starting to fetch Esp32 details with websocket for");
 
-  // TEST START
-  //   Emitting to the UI
-  const feedback = {
-    esp32: {
-      batteryCapacity: "6000mAH",
-      batteryPercentage: "50",
-      isConnectedToInternet: true,
-      isCharging: false,
-      isFingerprintActive: true,
-    },
-    error: false,
-  };
-  return socket.emit("esp32_feedback", feedback);
-  // TEST END
+  // // TEST START
+  // //   Emitting to the UI
+  // const feedback = {
+  //   esp32: {
+  //     batteryCapacity: "6000mAH",
+  //     batteryPercentage: "50",
+  //     isConnectedToInternet: true,
+  //     isCharging: false,
+  //     isFingerprintActive: true,
+  //   },
+  //   error: false,
+  // };
+  // return socket.emit("esp32_feedback", feedback);
+  // // TEST END
 
   //   Emmiting to the Device
-  socket.emit("esp32_request");
+  socket.emit("get_espData");
 
   // Waiting for ESP32 device data
-  socket.on("esp32_response", async (feedback) => {
+  socket.on("get_espData_feedback", async (feedback) => {
     console.log("ESP32 details feedback received:", feedback);
+
     //   Emitting to the UI
     return socket.emit("esp32_feedback", feedback);
   });

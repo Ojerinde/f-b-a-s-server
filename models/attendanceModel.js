@@ -27,6 +27,7 @@ const studentSchema = new Schema({
   name: String,
   email: String,
   matricNo: String,
+  fingerprintHash: String,
   courses: [{ type: Schema.Types.ObjectId, ref: "Course" }],
 });
 

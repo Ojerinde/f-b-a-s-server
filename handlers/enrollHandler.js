@@ -1,6 +1,7 @@
 const { Lecturer, Course, Student } = require("../models/attendanceModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
+const { calculateHash } = require("../utils/misc");
 
 // Endpoint for enrolling a student into a course with Websocket.
 exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
@@ -45,6 +46,7 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
       name,
       email: studentEmail,
       matricNo,
+      fingerprintHash: "",
       courses: [course._id],
     });
     await student.save();
@@ -61,18 +63,22 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
     }
   }
 
-  // TEST without ESP 32 Start
-  // Add the student to the course's list of enrolled students
-  course.students.push(student._id);
-  await course.save();
-  await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
-  // Send response to the frontend with success message
-  return socket.emit("enroll_feedback", {
-    message: `${student.matricNo} is successfully enrolled`,
-    error: false,
-  });
+  // // TEST without ESP 32 Start
+  // // Add the student to the course's list of enrolled students
+  // course.students.push(student._id);
+  // await course.save();
+  // await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
-  // TEST End
+  // // Update fingerprint hash
+  // student.fingerprintHash = calculateHash(student.matricNo);
+  // await student.save();
+
+  // // Send response to the frontend with success message
+  // return socket.emit("enroll_feedback", {
+  //   message: `${student.matricNo} is successfully enrolled`,
+  //   error: false,
+  // });
+  // // TEST End
 
   // Emit an 'enroll' event to ESP32 device
   socket.emit("enroll", { name, matricNo, courseCode });
@@ -95,10 +101,19 @@ exports.enrollStudentWithWebsocket = catchAsync(async (socket, data) => {
       // Add the student to the course's list of enrolled students
       course.students.push(student._id);
       await course.save();
+
+      // Update fingerprint hash
+      student.fingerprintHash = feedback.data.fingerprintHash;
+      await student.save();
+
+      // Send Mail to student
+      await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
+
       // Send response to the frontend with success message
       return socket.emit("enroll_feedback", {
         message: `${student.matricNo} is successfully enrolled`,
         error: false,
+        feedback,
       });
     }
   });

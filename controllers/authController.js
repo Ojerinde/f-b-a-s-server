@@ -55,8 +55,9 @@ const sendVerificationEmail = async (user, req, res, next) => {
       message: `A verification mail has been sent to ${user.email}`,
     });
   } catch (error) {
-    user.emailVerificationToken = undefined;
-    user.emailVerificationTokenExpiresIn = undefined;
+    console.log("error", error, user);
+    // Delete user if verification email could not be sent
+    await User.findByIdAndDelete(user._id);
     await user.save({ validateBeforeSave: false });
     return next(
       new AppError("There was an error sending the email. Try again later!"),
@@ -66,6 +67,8 @@ const sendVerificationEmail = async (user, req, res, next) => {
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
+  console.log("Signing up for ", req.body);
+
   // 1. Check if user exist
   const checkUser = await User.findOne({ email: req.body.email });
   if (checkUser) {
