@@ -38,7 +38,7 @@ app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
-  res.status(200).send("Https App is running");
+  res.status(200).send("HTTP App is running");
 });
 
 app.use("/api/v1/auth", authRouter);

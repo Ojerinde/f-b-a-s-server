@@ -31,7 +31,8 @@ io.on("connection", (socket) => {
   console.log("A client is connected");
 
   // // Emit an event to the client upon connection
-  // socket.emit("serverMessage", "Hello from server!");
+  socket.emit("serverMessage", "Hello from fbas server!");
+  socket.emit("welcome", "Welcome to fbas server!");
 
   // Handle enrollment with websocket from the UI
   socket.on("enroll", (data) => enrollStudentWithWebsocket(socket, data));

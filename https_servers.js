@@ -1,5 +1,4 @@
 /////// HTTPS Server ///////////////
-
 const https = require("https");
 const { Server } = require("socket.io");
 const fs = require("fs");
@@ -47,7 +46,7 @@ connectToMongoDB()
   .then(() => {
     console.log("Connection to MongoDB is successful.");
     httpsServer.listen(PORT, () => {
-      console.log("Https Server running on port ->", PORT);
+      console.log("HTTPs Server running on port ->", PORT);
     });
   })
   .catch((error) => {
