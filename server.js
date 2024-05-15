@@ -30,7 +30,7 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
   console.log("A client is connected");
 
-  // // Emit an event to the client upon connection
+  // Emit an event to the client upon connection
   socket.emit("serverMessage", "Hello from fbas server!");
   socket.emit("welcome", "Welcome to fbas server!");
 

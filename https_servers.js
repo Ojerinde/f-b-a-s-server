@@ -32,6 +32,10 @@ const io = new Server(httpsServer, {
 io.on("connection", (socket) => {
   console.log("a user connected");
 
+  // Emit an event to the client upon connection
+  socket.emit("serverMessage", "Hello from FBAS secured server!");
+  socket.emit("welcome", "Welcome to FBAS secured  server!");
+
   // Handle enrollment with websocket from the UI
   socket.on("enroll", (data) => enrollStudentWithWebsocket(socket, data));
 
