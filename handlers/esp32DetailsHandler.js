@@ -1,33 +1,37 @@
 const catchAsync = require("../utils/catchAsync");
+const WebSocket = require("ws");
 
 // Endpoint for fetching Esp32 details with Websocket.
-exports.esp32DetailsWithWebsocket = catchAsync(async (socket, data) => {
-  console.log("Starting to fetch Esp32 details with websocket for");
+exports.esp32DetailsWithWebsocket = catchAsync(async (ws, clients) => {
+  console.log("Starting to fetch Esp32 details with websocket");
 
-  // // TEST START
-  // //   Emitting to the UI
-  // const feedback = {
-  //   esp32: {
-  //     batteryCapacity: "6000mAH",
-  //     batteryPercentage: "50",
-  //     isConnectedToInternet: true,
-  //     isCharging: false,
-  //     isFingerprintActive: true,
-  //     location: "ELT"
-  //   },
-  //   error: false,
-  // };
-  // return socket.emit("esp32_feedback", feedback);
-  // // TEST END
+  // Emit event to ESP32 device to get data
+  const response = {
+    event: "esp32_data_request",
+    payload: "Requesting ESP32 details",
+  };
+  console.log("clients", clients.size);
 
-  //   Emmiting to the Device
-  socket.emit("get_espData");
+  // Broadcast the message to all clients except the sender
+  clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(response));
+    }
+  });
+});
 
-  // Waiting for ESP32 device data
-  socket.on("get_espData_feedback", async (feedback) => {
-    console.log("ESP32 details feedback received:", feedback);
+exports.esp32DetailsFeedback = catchAsync(async (ws, clients, payload) => {
+  console.log("Received feedback from ESP32 device:");
 
-    //   Emitting to the UI
-    return socket.emit("esp32_feedback", feedback);
+  const response = {
+    event: "esp32_data_feedback",
+    payload,
+  };
+
+  // Broadcast the feedback to all clients except the sender
+  clients.forEach((client, id) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(response));
+    }
   });
 });

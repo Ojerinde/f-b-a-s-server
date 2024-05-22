@@ -1,59 +1,88 @@
 const { createServer } = require("http");
-const { Server } = require("socket.io");
+const WebSocket = require("ws");
 require("dotenv").config(); // Loads .env file contents into process.env.
 
 const app = require("./app");
 const connectToMongoDB = require("./db");
-const { enrollStudentWithWebsocket } = require("./handlers/enrollHandler");
+const {
+  enrollStudentWithWebsocket,
+  getEnrollFeedbackFromEsp32,
+} = require("./handlers/enrollHandler");
 const {
   takeAttendanceWithWebsocket,
+  getAttendanceFeedbackFromEsp32,
 } = require("./handlers/takeAttendanceHandler");
-// const {
-//   deleteEnrolledStudentsWithWebsocket,
-// } = require("./handlers/deleteEnrolledStudentHandler");
-const { esp32DetailsWithWebsocket } = require("./handlers/esp32DetailsHandler");
+const {
+  esp32DetailsWithWebsocket,
+  esp32DetailsFeedback,
+} = require("./handlers/esp32DetailsHandler");
 
-const PORT = process.env.PORT || 8080;
+const PORT = 5000;
 
 const httpServer = createServer(app);
 
-// Initialize io with server
-const io = new Server(httpServer, {
-  cors: {
-    // origin: [`http://localhost:3000`, `https://f-b-a-s-client.vercel.app`],
-    origin: true,
-    methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD"],
-    credentials: true,
-  },
-});
+const clients = new Set();
 
-io.on("connection", (socket) => {
+// Initialize WebSocket server
+const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
+
+wss.on("connection", (ws) => {
   console.log("A client is connected");
 
+  clients.add(ws);
+
   // Emit an event to the client upon connection
-  socket.emit("serverMessage", "Hello from fbas server!");
-  socket.emit("welcome", "Welcome to fbas server!");
+  ws.send(
+    JSON.stringify({
+      event: "serverMessage",
+      payload: "Hello from fbas server!",
+    })
+  );
+  ws.send(
+    JSON.stringify({ event: "welcome", payload: "Welcome to fbas server!" })
+  );
 
-  // Handle enrollment with websocket from the UI
-  socket.on("enroll", (data) => enrollStudentWithWebsocket(socket, data));
+  // Handle incoming messages
+  ws.on("message", (message) => {
+    const data = JSON.parse(message);
+    console.log(`${data?.event} event received from client`);
 
-  // Handle attendance with websocket from the UI
-  socket.on("attendance", (data) => takeAttendanceWithWebsocket(socket, data));
+    switch (data?.event) {
+      case "enroll":
+        enrollStudentWithWebsocket(ws, clients, data.payload);
+        break;
+      case "attendance":
+        takeAttendanceWithWebsocket(ws, clients, data.payload);
+        break;
+      case "esp32_data_request":
+        esp32DetailsWithWebsocket(ws, clients);
+        break;
 
-  // // Handle attendance with websocket from the UI
-  // socket.on("delete_enrolled_students", (data) =>
-  //   deleteEnrolledStudentsWithWebsocket(socket, data)
-  // );
+      // Feedback from ESP32 device
+      case "enroll_response":
+        getEnrollFeedbackFromEsp32(ws, clients, data.payload);
+        break;
+      case "attendance_response":
+        getAttendanceFeedbackFromEsp32(ws, clients, data.payload);
+        break;
+      case "esp32_data_response":
+        esp32DetailsFeedback(ws, clients, data.payload);
+        break;
+      default:
+        console.log("Unknown event:", data.event);
+    }
+  });
 
-  // Handle fetch esp32 details with websocket from the UI
-  socket.on("esp32_details", (data) => esp32DetailsWithWebsocket(socket, data));
+  ws.on("close", () => {
+    console.log("A client disconnected");
+  });
 });
 
 connectToMongoDB()
   .then(() => {
     console.log("Connection to MongoDB is successful.");
     httpServer.listen(PORT, () => {
-      console.log("Server running on port ->", PORT);
+      console.log("Websocket Server running on port ->", PORT);
     });
   })
   .catch((error) => {

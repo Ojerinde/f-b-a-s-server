@@ -7,8 +7,8 @@
   },
   "main": "app.js",
   "scripts": {
-    "dev": "nodemon ws_server.js",
-    "start": "node ws_server.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js"
   },
   "author": "",
   "license": "ISC",
