@@ -97,6 +97,37 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
     await student.save();
   }
 
+  if (student && student.matricNo === matricNo && student.name !== name) {
+    return clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          event: "enroll_feedback",
+          payload: {
+            message: `Student with Matric No. ${student.matricNo} already exists with a different name`,
+            error: true,
+          },
+        })
+      );
+    });
+  }
+
+  if (student) {
+    // If the student already exists, check if the current course has been already enrolled for
+    if (student.courses.includes(course._id)) {
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: `Student with Matric No. ${student.matricNo} is already enrolled for this course`,
+              error: true,
+            },
+          })
+        );
+      });
+    }
+  }
+
   // If feedback indicates an error, rollback the enrollment process
   if (data.error) {
     // Rollback actions: Delete the created student and remove from course
@@ -121,6 +152,11 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
 
     // Update fingerprint hash
     student.fingerprintHash = fingerprintHash;
+
+    // Add the course to the student's list of enrolled courses
+    student.courses.push(course._id);
+
+    // Save the student to the database
     await student.save();
 
     // Send Mail to student

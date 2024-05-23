@@ -157,6 +157,8 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
 // Endpoint for disenroll student for a course
 exports.disenrollStudent = catchAsync(async (req, res, next) => {
   const { courseCode, matricNo } = req.params;
+  const modifiedMatricNo = matricNo.replace("_", "/");
+
   console.log("courseCode", courseCode, matricNo);
 
   // Find the course by its course code
@@ -168,18 +170,21 @@ exports.disenrollStudent = catchAsync(async (req, res, next) => {
 
   // Filter out the disenrolled student from the course's students list
   course.students = course.students.filter(
-    (stu) => stu.matricNo !== matricNo.replace("_", "/")
+    (stu) => stu.matricNo !== modifiedMatricNo
   );
 
   // Save the updated course with the removed student
   await course.save();
 
+  // Filter out the course from the student's courses list
+  const student = await Student.findOne({ matricNo: modifiedMatricNo });
+  student.courses = student.courses.filter(
+    (courseId) => courseId.toString() !== course._id.toString()
+  );
+
   // Send the updated list of students as a response
   res.status(200).json({
-    message: `Student with ${matricNo.replace(
-      "_",
-      "/"
-    )} has been disenrolled successfully`,
+    message: `Student with ${modifiedMatricNo} has been disenrolled successfully`,
     students: course.students,
   });
 });
