@@ -5,26 +5,34 @@ const Email = require("../utils/email");
 // Endpoint for enrolling a student into a course with Websocket.
 exports.enrollStudentWithWebsocket = catchAsync(async (ws, clients, data) => {
   console.log("Starting enrollment process with websocket for", data);
+
   // Find the lecturer by email to get the selected courses
   const lecturer = await Lecturer.findOne({
     email: data.lecturerEmail,
   });
 
-  const { courseCode, courseName, name, matricNo } = data;
+  const { courseCode, courseName, noOfStudents, name, matricNo } = data;
 
   // Find the course by its course code
   let course = await Course.findOne({ courseCode });
+
+  if (course && !course.lecturer) {
+    course.lecturer = lecturer._id;
+    await course.save();
+  }
 
   if (!course) {
     // If the course doesn't exist, create it
     course = new Course({
       courseCode: courseCode,
       courseName: courseName,
+      noOfStudents: noOfStudents,
       lecturer: lecturer._id,
       students: [],
       attendance: [],
     });
     await course.save();
+    console.log("Course created", course, lecturer);
   }
 
   // Find or create a student by matricNo
@@ -65,7 +73,13 @@ exports.enrollStudentWithWebsocket = catchAsync(async (ws, clients, data) => {
     client.send(
       JSON.stringify({
         event: "enroll",
-        payload: { name, matricNo, courseCode },
+        payload: {
+          name,
+          matricNo,
+          courseCode: course.courseCode,
+          start: course.startId,
+          end: course.endId,
+        },
       })
     );
   });
@@ -75,7 +89,7 @@ exports.enrollStudentWithWebsocket = catchAsync(async (ws, clients, data) => {
 exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
   console.log("Enrollment feedback received from ESP32 device:", data);
 
-  const { courseCode, name, matricNo, fingerprintHash } = data;
+  const { courseCode, name, matricNo, idOnSensor } = data;
 
   let course = await Course.findOne({ courseCode });
 
@@ -91,10 +105,31 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
       name,
       email: studentEmail,
       matricNo,
-      fingerprintHash: "",
+      idOnSensor,
       courses: [course._id],
     });
+    // Add the student to the course's list of enrolled students
+    course.students.push(student._id);
+    await course.save();
+
+    // Save the student to the database
     await student.save();
+
+    // Send Mail to student
+    await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
+
+    // Send response to the frontend with success message
+    return clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          event: "enroll_feedback",
+          payload: {
+            message: `Student with Matric No. ${student.matricNo} is successfully enrolled`,
+            error: false,
+          },
+        })
+      );
+    });
   }
 
   if (student && student.matricNo === matricNo && student.name !== name) {
@@ -150,8 +185,8 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
     course.students.push(student._id);
     await course.save();
 
-    // Update fingerprint hash
-    student.fingerprintHash = fingerprintHash;
+    // Update fingerprint Id on Sensor
+    student.idOnSensor = idOnSensor;
 
     // Add the course to the student's list of enrolled courses
     student.courses.push(course._id);

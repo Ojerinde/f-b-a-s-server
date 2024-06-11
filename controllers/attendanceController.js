@@ -6,10 +6,59 @@ const {
   Student,
   Attendance,
   Device,
+  NoOfStudents,
 } = require("../models/attendanceModel");
 
 exports.createLecturer = catchAsync(async (req, res, next) => {
   console.log("Creating Lecturer with", req.body);
+
+  // Calculate the total number of students from the new courses only
+  const newCourses = [];
+  let newStudentsCount = 0;
+
+  for (let course of req.body.courses) {
+    const courseRecord = await Course.findOne({
+      courseCode: course.courseCode,
+    });
+    if (!courseRecord) {
+      newCourses.push(course);
+      newStudentsCount += course.noOfStudents;
+    }
+  }
+
+  let savedTotalNumber = await NoOfStudents.findOne({ department: "EEE" });
+  if (!savedTotalNumber) {
+    // Initialize the department record if it doesn't exist
+    savedTotalNumber = await NoOfStudents.create({
+      department: "EEE",
+      noOfStudents: newStudentsCount,
+      startId: 1,
+      endId: newStudentsCount,
+    });
+  } else {
+    // Update the total number of students and the endId with new courses only
+    savedTotalNumber.noOfStudents += newStudentsCount;
+    savedTotalNumber.endId += newStudentsCount;
+    await savedTotalNumber.save();
+  }
+
+  console.log("saved", savedTotalNumber);
+
+  // Now, assign sensor ID ranges to each new course
+  let currentStartId = savedTotalNumber.endId - newStudentsCount + 1;
+  for (let course of newCourses) {
+    const newCourseRecord = await Course.create({
+      courseCode: course.courseCode,
+      courseName: course.courseName,
+      noOfStudents: course.noOfStudents,
+      startId: currentStartId,
+      endId: currentStartId + course.noOfStudents - 1,
+    });
+    currentStartId = newCourseRecord.endId + 1;
+    console.log(
+      `Assigned ID range ${newCourseRecord.startId} to ${newCourseRecord.endId} for course ${course.courseCode}`
+    );
+  }
 
   // Check if the lecturer already exists based on email
   const existingLecturer = await Lecturer.findOne({ email: req.body.email });
@@ -85,6 +134,8 @@ exports.getLecturerCourses = catchAsync(async (req, res, next) => {
 
 // Endpoint for fetching all students enrolled in a course
 exports.getEnrolledStudents = catchAsync(async (req, res, next) => {
+  console.log("Getting Enrolled Students for", req.params);
+
   const { courseCode } = req.params;
 
   // Find the course by its course code and populate the 'students' field to get student details
@@ -111,7 +162,10 @@ exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
   // Retrieve the attendance records for the course
   const attendanceRecords = await Attendance.find({
     course: course._id,
-  }).populate("studentsPresent");
+  }).populate({
+    path: "studentsPresent.student",
+    model: "Student",
+  });
 
   res.status(200).json({ attendanceRecords });
 });
@@ -189,10 +243,14 @@ exports.disenrollStudent = catchAsync(async (req, res, next) => {
   });
 });
 
-// Endpoint for disenroll student for a course
 exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
   const { courseCode, matricNo } = req.params;
-  console.log("courseCode", courseCode, matricNo);
+  console.log(
+    "Getting Other Student Details for",
+    courseCode,
+    "matricNo",
+    matricNo
+  );
 
   // Step 1: Find the student by matriculation number and populate the courses field
   const student = await Student.findOne({
@@ -210,9 +268,10 @@ exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
       },
     ],
   });
+  console.log("Student", student);
 
   if (!student) {
-    return new AppError("Student not found", 404);
+    return res.status(404).json({ message: "Student not found" });
   }
 
   // Initialize variables to store overall attendance details
@@ -222,19 +281,23 @@ exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
   // Step 2: Compute attendance for each course
   const courseAttendances = await Promise.all(
     student.courses.map(async (course) => {
-      // Fetch attendance records for the course and student
+      // Fetch attendance records for the course
       const attendanceRecords = await Attendance.find({
         course: course._id,
-        studentsPresent: student._id,
       });
+
+      // Filter attendance records to count only those where the student is present
+      const studentAttendanceCount = attendanceRecords.filter((record) =>
+        record.studentsPresent.some((sp) => sp.student.equals(student._id))
+      ).length;
 
       // Compute attendance percentage for the course
       const attendancePercentage =
-        (attendanceRecords.length / course.attendance.length) * 100;
+        (studentAttendanceCount / attendanceRecords.length) * 100;
 
       // Update overall attendance details
-      totalAttendanceCount += attendanceRecords.length;
-      totalPossibleAttendanceCount += course.attendance.length;
+      totalAttendanceCount += studentAttendanceCount;
+      totalPossibleAttendanceCount += attendanceRecords.length;
 
       // Return course attendance details
       return {
@@ -247,11 +310,13 @@ exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
 
   // Step 3: Compute overall attendance for the student
   const overallAttendancePercentage =
-    (totalAttendanceCount / totalPossibleAttendanceCount) * 100;
+    totalPossibleAttendanceCount > 0
+      ? (totalAttendanceCount / totalPossibleAttendanceCount) * 100
+      : 0;
 
-  console.log("courseAttendances", student.courses);
+  console.log("courseAttendances", courseAttendances);
 
-  // // Return results
+  // Return results
   res.status(200).json({
     courses: student.courses,
     courseAttendances,

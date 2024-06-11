@@ -31,16 +31,18 @@ wss.on("connection", (ws) => {
 
   clients.add(ws);
 
-  // Emit an event to the client upon connection
-  ws.send(
-    JSON.stringify({
-      event: "serverMessage",
-      payload: "Hello from fbas server!",
-    })
-  );
-  ws.send(
-    JSON.stringify({ event: "welcome", payload: "Welcome to fbas server!" })
-  );
+  // Emit an event to the client upon connection every 15 seconds
+  // setInterval(() => {
+  //   ws.send(
+  //     JSON.stringify({
+  //       event: "serverMessage",
+  //       payload: "Hello from fbas server!",
+  //     })
+  //   );
+  //   ws.send(
+  //     JSON.stringify({ event: "welcome", payload: "Welcome to fbas server!" })
+  //   );
+  // }, 15000);
 
   // Handle incoming messages
   ws.on("message", (message) => {
