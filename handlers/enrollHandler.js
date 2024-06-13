@@ -1,3 +1,4 @@
+const { string } = require("joi");
 const { Lecturer, Course, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
@@ -124,7 +125,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
             payload: {
               courseCode,
               matricNo,
-              proposedId,
+              proposedId: `${proposedId}`,
             },
           })
         );

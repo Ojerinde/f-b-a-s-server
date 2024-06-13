@@ -28,8 +28,8 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
         JSON.stringify({
           event: "delete_fingerprint_request",
           payload: {
-            idOnSensor: studentIdOnSensor,
-            courseCode: payload.courseCode,
+            idOnSensor: `${studentIdOnSensor}`,
+            courseCode: `${payload.courseCode}`,
           },
         })
       );
