@@ -1,4 +1,4 @@
-const { Course, Attendance, Student } = require("../models/attendanceModel");
+const { Course, Attendance, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 
 exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
@@ -28,12 +28,25 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
   );
 
   // Find the course by its course code
-  const course = await Course.findOne({ courseCode });
+  const course = await Course.findOne({ courseCode }).populate("students");
 
-  // const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const fiveMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+  if (!course) {
+    return clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          event: "attendance_feedback",
+          payload: {
+            message: `Course ${courseCode} does not exist`,
+            error: true,
+          },
+        })
+      );
+    });
+  }
 
   // Check if there is an attendance for the day
+  const fiveMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+
   const existingAttendance = await Attendance.findOne({
     course: course._id,
     date: { $gte: fiveMinuteAgo },
@@ -51,40 +64,54 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
         })
       );
     });
-  } else {
-    // Emit event to ESP 32 with all the data of the students enrolled for the course
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "take_attendance",
-          payload: {
-            courseCode: course.courseCode,
-            // startTime: `${startTime.getHours()}:${startTime.getMinutes()}`,
-            // endTime: `${endTime.getHours()}:${endTime.getMinutes()}`,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            startId: course.startId,
-            endId: course.endId,
-          },
-        })
-      );
-    });
   }
+
+  // Get all registered student IDs for the course
+  const registeredStudentsId = course.students.map(
+    (student) => student.idOnSensor
+  );
+
+  // Emit event to ESP32 with all the data of the students enrolled for the course
+  return clients.forEach((client) => {
+    client.send(
+      JSON.stringify({
+        event: "attendance_request",
+        payload: {
+          courseCode: course.courseCode,
+          startTime: startTime.toISOString(),
+          stopTime: endTime.toISOString(),
+          enrolledStudentsId: registeredStudentsId,
+        },
+      })
+    );
+  });
 });
 
 exports.getAttendanceFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Attendance feedback received from ESP32", payload.courseCode);
+    console.log("Attendance feedback received from ESP32", payload);
 
-    if (payload?.message === "Downloaded successfully") {
-      console.log("Downloaded successfully");
-      // Send a download success feedback to the UI
+    if (payload.error) {
       return clients.forEach((client) => {
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `${payload.courseCode} data downloaded succesfully`,
+              message: `Attendance not taken successfully`,
+              error: true,
+            },
+          })
+        );
+      });
+    }
+
+    if (payload?.data.message === "Downloaded successfully") {
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "attendance_feedback",
+            payload: {
+              message: `${payload.data.courseCode} data downloaded successfully`,
               error: false,
             },
           })
@@ -93,7 +120,9 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     }
 
     // Find the course by its course code
-    const course = await Course.findOne({ courseCode: payload.courseCode });
+    const course = await Course.findOne({
+      courseCode: payload.data.courseCode,
+    }).populate("students");
 
     if (!course) {
       return clients.forEach((client) => {
@@ -101,7 +130,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `Course ${payload.courseCode} not found`,
+              message: `Course ${payload.data.courseCode} not found`,
               error: true,
             },
           })
@@ -109,13 +138,12 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    // const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const fiveMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    const attendanceDate = new Date(payload.data.date);
 
-    // Check if there is an attendance for the day
+    // Check if there is an attendance for the exact date and time
     const existingAttendance = await Attendance.findOne({
       course: course._id,
-      date: { $gte: fiveMinuteAgo },
+      date: attendanceDate,
     });
 
     if (existingAttendance) {
@@ -124,7 +152,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `Attendance has already been marked for ${payload.courseCode} today`,
+              message: `Attendance has already been marked for ${payload.data.courseCode} at ${payload.data.date}`,
               error: true,
             },
           })
@@ -132,20 +160,29 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    // Find students based on their idOnSensor and matricNo values
+    // Remove duplicates based on idOnSensor
+    const uniqueStudents = payload.data.students.filter(
+      (stu, index, self) =>
+        index === self.findIndex((s) => s.idOnSensor === stu.idOnSensor)
+    );
+    console.log("Unique Students", uniqueStudents);
+
+    // Find students based on their idOnSensor
     const studentRecords = await Promise.all(
-      payload.students.map(async (stu) => {
-        const student = await Student.findOne({
-          idOnSensor: stu.idOnSensor,
-          matricNo: stu.matricNo,
-        });
-        return student ? { student: student._id, time: stu.time } : null;
+      uniqueStudents.map(async (stu) => {
+        const student = await Student.findOne({ idOnSensor: stu.idOnSensor });
+        console.log("Students And Course", student, course.students);
+
+        if (student && course.students.includes(student._id)) {
+          return { student: student._id, time: stu.time };
+        }
+        return null;
       })
     );
 
     console.log("Student Records", studentRecords);
 
-    // Filter out null values if any student was not found
+    // Filter out null values if any student was not found or is not enrolled in the course
     const validStudentRecords = studentRecords.filter(
       (record) => record !== null
     );
@@ -158,7 +195,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `No valid students found for course ${payload.courseCode}`,
+              message: `No valid students found for course ${payload.data.courseCode}`,
               error: true,
             },
           })
@@ -166,12 +203,10 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    const today = new Date();
-
-    // Create a new attendance record for the current date
+    // Create a new attendance record for the provided date
     const newAttendance = new Attendance({
       course: course._id,
-      date: today,
+      date: attendanceDate,
       studentsPresent: validStudentRecords,
     });
 
@@ -186,7 +221,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
         JSON.stringify({
           event: "attendance_feedback",
           payload: {
-            message: `Attendance record for ${payload.courseCode} has been saved successfully`,
+            message: `Attendance record for ${payload.data.courseCode} has been saved successfully`,
             error: false,
           },
         })

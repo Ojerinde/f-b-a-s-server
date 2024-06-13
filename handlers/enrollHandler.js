@@ -1,197 +1,191 @@
-const { Lecturer, Course, Student } = require("../models/attendanceModel");
+const { Lecturer, Course, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
 
-// Endpoint for enrolling a student into a course with Websocket.
-exports.enrollStudentWithWebsocket = catchAsync(async (ws, clients, data) => {
-  console.log("Starting enrollment process with websocket for", data);
+// Endpoint for enrolling a student into a course with WebSocket.
+exports.enrollStudentWithWebsocket = catchAsync(
+  async (ws, clients, payload) => {
+    console.log("Starting enrollment process with WebSocket for", payload);
 
-  // Find the lecturer by email to get the selected courses
-  const lecturer = await Lecturer.findOne({
-    email: data.lecturerEmail,
-  });
+    const { courseCode, name, matricNo } = payload;
 
-  const { courseCode, courseName, noOfStudents, name, matricNo } = data;
+    // Find the course by its course code
+    const course = await Course.findOne({ courseCode });
 
-  // Find the course by its course code
-  let course = await Course.findOne({ courseCode });
-
-  if (course && !course.lecturer) {
-    course.lecturer = lecturer._id;
-    await course.save();
-  }
-
-  if (!course) {
-    // If the course doesn't exist, create it
-    course = new Course({
-      courseCode: courseCode,
-      courseName: courseName,
-      noOfStudents: noOfStudents,
-      lecturer: lecturer._id,
-      students: [],
-      attendance: [],
-    });
-    await course.save();
-    console.log("Course created", course, lecturer);
-  }
-
-  // Find or create a student by matricNo
-  let student = await Student.findOne({ matricNo });
-  if (student && student.matricNo === matricNo && student.name !== name) {
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "enroll_feedback",
-          payload: {
-            message: `Student with Matric No. ${student.matricNo} already exists with a different name`,
-            error: true,
-          },
-        })
-      );
-    });
-  }
-
-  if (student) {
-    // If the student already exists, check if the current course has been already enrolled for
-    if (student.courses.includes(course._id)) {
+    if (!course) {
       return clients.forEach((client) => {
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
             payload: {
-              message: `Student with Matric No. ${student.matricNo} is already enrolled for this course`,
+              message: `Course ${courseCode} does not exist`,
               error: true,
             },
           })
         );
       });
     }
-  }
 
-  // Emit an 'enroll' event to ESP32 device
-  return clients.forEach((client) => {
-    client.send(
-      JSON.stringify({
-        event: "enroll",
-        payload: {
-          name,
-          matricNo,
-          courseCode: course.courseCode,
-          start: course.startId,
-          end: course.endId,
-        },
-      })
-    );
-  });
-});
+    // Find or create a student by matricNo
+    let student = await Student.findOne({ matricNo });
+
+    if (student) {
+      if (student.name !== name) {
+        return clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              event: "enroll_feedback",
+              payload: {
+                message: `Student with Matric No. ${student.matricNo} already exists with a different name`,
+                error: true,
+              },
+            })
+          );
+        });
+      }
+
+      if (student.courses.includes(course._id)) {
+        return clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              event: "enroll_feedback",
+              payload: {
+                message: `Student with Matric No. ${student.matricNo} is already enrolled for this course`,
+                error: true,
+              },
+            })
+          );
+        });
+      }
+
+      // Student exists and is not enrolled in this course
+      student.courses.push(course._id);
+      await student.save();
+      course.students.push(student._id);
+      await course.save();
+
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: `Student with Matric No. ${student.matricNo} successfully enrolled for course ${course.courseCode}`,
+              error: false,
+            },
+          })
+        );
+      });
+    } else {
+      // Find an available proposedId between 1 and 299
+      let proposedId;
+      for (let i = 1; i <= 299; i++) {
+        const idExists = await Student.findOne({ idOnSensor: i });
+        if (!idExists) {
+          proposedId = i;
+          break;
+        }
+      }
+
+      if (!proposedId) {
+        return clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              event: "enroll_feedback",
+              payload: {
+                message: `No available ID on sensor`,
+                error: true,
+              },
+            })
+          );
+        });
+      }
+
+      // Create the student with idOnSensor set to undefined
+      student = new Student({
+        name,
+        email: `${matricNo
+          .replace("/", "-")
+          .toLowerCase()}@students.unilorin.edu.ng`,
+        matricNo,
+        idOnSensor: undefined,
+        courses: [course._id],
+      });
+      await student.save();
+
+      // Add the student to the course's list of enrolled students
+      course.students.push(student._id);
+      await course.save();
+
+      // Emit an 'enroll' event to ESP32 device
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_request",
+            payload: {
+              courseCode,
+              matricNo,
+              proposedId,
+            },
+          })
+        );
+      });
+    }
+  }
+);
 
 // Endpoint for receiving feedback from ESP32 device after enrollment
-exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
-  console.log("Enrollment feedback received from ESP32 device:", data);
+exports.getEnrollFeedbackFromEsp32 = catchAsync(
+  async (ws, clients, payload) => {
+    console.log("Enrollment feedback received from ESP32 device:", payload);
 
-  const { courseCode, name, matricNo, idOnSensor } = data;
+    const { courseCode, matricNo, idOnSensor } = payload?.data;
 
-  let course = await Course.findOne({ courseCode });
+    // Find the student by matricNo
+    let student = await Student.findOne({ matricNo });
+    let course = await Course.findOne({ courseCode });
 
-  // Find the student by matricNo
-  let student = await Student.findOne({ matricNo });
-
-  const studentEmail = `${matricNo
-    .replace("/", "-")
-    .toLowerCase()}@students.unilorin.edu.ng`;
-
-  if (!student) {
-    student = new Student({
-      name,
-      email: studentEmail,
-      matricNo,
-      idOnSensor,
-      courses: [course._id],
-    });
-    // Add the student to the course's list of enrolled students
-    course.students.push(student._id);
-    await course.save();
-
-    // Save the student to the database
-    await student.save();
-
-    // Send Mail to student
-    await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
-
-    // Send response to the frontend with success message
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "enroll_feedback",
-          payload: {
-            message: `Student with Matric No. ${student.matricNo} is successfully enrolled`,
-            error: false,
-          },
-        })
+    if (payload.error) {
+      // Rollback actions: Delete the created student and remove from course
+      await Course.updateMany(
+        { students: student._id },
+        { $pull: { students: student._id } }
       );
-    });
-  }
+      await Student.findByIdAndDelete(student._id);
 
-  if (student && student.matricNo === matricNo && student.name !== name) {
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "enroll_feedback",
-          payload: {
-            message: `Student with Matric No. ${student.matricNo} already exists with a different name`,
-            error: true,
-          },
-        })
-      );
-    });
-  }
-
-  if (student) {
-    // If the student already exists, check if the current course has been already enrolled for
-    if (student.courses.includes(course._id)) {
+      // Send response to the frontend with error message
       return clients.forEach((client) => {
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
             payload: {
-              message: `Student with Matric No. ${student.matricNo} is already enrolled for this course`,
+              message: `Enrollment for student with Matric No. ${student.matricNo} failed`,
               error: true,
             },
           })
         );
       });
     }
-  }
 
-  // If feedback indicates an error, rollback the enrollment process
-  if (data.error) {
-    // Rollback actions: Delete the created student and remove from course
-    await Student.findByIdAndDelete(student._id);
+    if (payload?.data?.message === "Place finger") {
+      // Send response to the frontend with error message
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: `${payload.data.matricNo} should place the finger to be enrolled on the sensor`,
+              error: false,
+            },
+          })
+        );
+      });
+    }
 
-    // Send response to the frontend with error message
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "enroll_feedback",
-          payload: {
-            message: `Enrollment for student with Matric No. ${student.matricNo} failed`,
-            error: true,
-          },
-        })
-      );
-    });
-  } else {
-    // Add the student to the course's list of enrolled students
-    course.students.push(student._id);
-    await course.save();
-
-    // Update fingerprint Id on Sensor
+    // Update fingerprint Id on Sensor and add course to student
+    if (!student.courses.includes(course._id)) {
+      student.courses.push(course._id);
+    }
     student.idOnSensor = idOnSensor;
-
-    // Add the course to the student's list of enrolled courses
-    student.courses.push(course._id);
-
-    // Save the student to the database
     await student.save();
 
     // Send Mail to student
@@ -210,4 +204,4 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(async (ws, clients, data) => {
       );
     });
   }
-});
+);

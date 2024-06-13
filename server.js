@@ -16,6 +16,14 @@ const {
   esp32DetailsWithWebsocket,
   esp32DetailsFeedback,
 } = require("./handlers/esp32DetailsHandler");
+const {
+  clearFingerprintsWithWebsocket,
+  clearFingerprintsFeedback,
+} = require("./handlers/emptyFingerprintsHandler");
+const {
+  deleteFingerprintFeedback,
+  deleteFingerprintWithWebsocket,
+} = require("./handlers/deleteFingerprintHandler");
 
 const PORT = 5000;
 
@@ -31,19 +39,6 @@ wss.on("connection", (ws) => {
 
   clients.add(ws);
 
-  // Emit an event to the client upon connection every 15 seconds
-  // setInterval(() => {
-  //   ws.send(
-  //     JSON.stringify({
-  //       event: "serverMessage",
-  //       payload: "Hello from fbas server!",
-  //     })
-  //   );
-  //   ws.send(
-  //     JSON.stringify({ event: "welcome", payload: "Welcome to fbas server!" })
-  //   );
-  // }, 15000);
-
   // Handle incoming messages
   ws.on("message", (message) => {
     const data = JSON.parse(message);
@@ -56,8 +51,14 @@ wss.on("connection", (ws) => {
       case "attendance":
         takeAttendanceWithWebsocket(ws, clients, data.payload);
         break;
-      case "esp32_data_request":
+      case "esp32_data":
         esp32DetailsWithWebsocket(ws, clients);
+        break;
+      case "clear_fingerprints":
+        clearFingerprintsWithWebsocket(ws, clients, data.payload);
+        break;
+      case "delete_fingerprint":
+        deleteFingerprintWithWebsocket(ws, clients, data.payload);
         break;
 
       // Feedback from ESP32 device
@@ -69,6 +70,12 @@ wss.on("connection", (ws) => {
         break;
       case "esp32_data_response":
         esp32DetailsFeedback(ws, clients, data.payload);
+        break;
+      case "empty_fingerprints_response":
+        clearFingerprintsFeedback(ws, clients, data.payload);
+        break;
+      case "delete_fingerprint_response":
+        deleteFingerprintFeedback(ws, clients, data.payload);
         break;
       default:
         console.log("Unknown event:", data.event);

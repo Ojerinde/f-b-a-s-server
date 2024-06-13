@@ -7,7 +7,7 @@ const xss = require("xss-clean");
 
 // RouteHandler
 const authRouter = require("./routes/authRoutes");
-const attendanceRouter = require("./routes/attendanceRoutes");
+const appRouter = require("./routes/appRoutes");
 
 // Utils
 const AppError = require("./utils/appError");
@@ -42,7 +42,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
-app.use("/api/v1", attendanceRouter);
+app.use("/api/v1", appRouter);
 
 // Any request that makes it to this part has lost it's way
 app.all("*", (req, res, next) => {

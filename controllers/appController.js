@@ -1,126 +1,110 @@
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
-const {
-  Lecturer,
-  Course,
-  Student,
-  Attendance,
-  Device,
-  NoOfStudents,
-} = require("../models/attendanceModel");
+const { Lecturer, Course, Student, Attendance } = require("../models/appModel");
 
 exports.createLecturer = catchAsync(async (req, res, next) => {
   console.log("Creating Lecturer with", req.body);
 
-  // Calculate the total number of students from the new courses only
-  const newCourses = [];
-  let newStudentsCount = 0;
+  const { name, email, courses: requestedCourses } = req.body;
 
-  for (let course of req.body.courses) {
+  // Filter out courses that are already assigned to another lecturer
+  const newCourses = [];
+  const courseCodes = requestedCourses.map((course) => course.courseCode);
+
+  for (let course of requestedCourses) {
+    // Check if the course is assigned to any lecturer
     const courseRecord = await Course.findOne({
       courseCode: course.courseCode,
     });
-    if (!courseRecord) {
+    if (courseRecord && courseRecord.lecturer) {
+      console.log(
+        `Course ${course.courseCode} is already assigned to another lecturer`
+      );
+    } else {
       newCourses.push(course);
-      newStudentsCount += course.noOfStudents;
     }
   }
 
-  let savedTotalNumber = await NoOfStudents.findOne({ department: "EEE" });
-  if (!savedTotalNumber) {
-    // Initialize the department record if it doesn't exist
-    savedTotalNumber = await NoOfStudents.create({
-      department: "EEE",
-      noOfStudents: newStudentsCount,
-      startId: 1,
-      endId: newStudentsCount,
-    });
-  } else {
-    // Update the total number of students and the endId with new courses only
-    savedTotalNumber.noOfStudents += newStudentsCount;
-    savedTotalNumber.endId += newStudentsCount;
-    await savedTotalNumber.save();
-  }
-
-  console.log("saved", savedTotalNumber);
-
-  // Now, assign sensor ID ranges to each new course
-  let currentStartId = savedTotalNumber.endId - newStudentsCount + 1;
-  for (let course of newCourses) {
-    const newCourseRecord = await Course.create({
-      courseCode: course.courseCode,
-      courseName: course.courseName,
-      noOfStudents: course.noOfStudents,
-      startId: currentStartId,
-      endId: currentStartId + course.noOfStudents - 1,
-    });
-    currentStartId = newCourseRecord.endId + 1;
-    console.log(
-      `Assigned ID range ${newCourseRecord.startId} to ${newCourseRecord.endId} for course ${course.courseCode}`
-    );
-  }
-
   // Check if the lecturer already exists based on email
-  const existingLecturer = await Lecturer.findOne({ email: req.body.email });
-  if (existingLecturer) {
-    // If lecturer exists, update their selected courses
-    // Get the initial list of courses for the lecturer from the database
-    const existingCourses = existingLecturer.selectedCourses;
+  let lecturer = await Lecturer.findOne({ email });
 
-    const newCourses = req.body.courses;
+  if (!lecturer) {
+    // Create a new lecturer
+    lecturer = await Lecturer.create({ name, email, selectedCourses: [] });
+  }
 
-    // Remove any courses from the initial list that are not in the new list
-    const removedCourses = existingCourses.filter(
+  // Remove courses from the lecturer's selectedCourses that are not in the request
+  const removedCourseCodes = lecturer.selectedCourses
+    .filter(
       (course) =>
-        !newCourses.some(
+        !requestedCourses.some(
           (newCourse) => newCourse.courseCode === course.courseCode
         )
-    );
+    )
+    .map((course) => course.courseCode);
 
-    // Remove courses from the database that are not in the new array
+  if (removedCourseCodes.length > 0) {
     await Lecturer.updateOne(
-      { email: req.body.email },
+      { email },
       {
-        $pull: {
-          selectedCourses: {
-            courseCode: {
-              $in: removedCourses.map((course) => course.courseCode),
-            },
-          },
-        },
+        $pull: { selectedCourses: { courseCode: { $in: removedCourseCodes } } },
       }
     );
 
-    // Add any new courses from the new list that are not in the initial list
-    const addedCourses = newCourses.filter(
-      (newCourse) =>
-        !existingCourses.some(
-          (course) => course.courseCode === newCourse.courseCode
-        )
-    );
+    // Check if the removed courses are still assigned to any lecturer and delete if not
+    for (let courseCode of removedCourseCodes) {
+      const otherLecturer = await Lecturer.findOne({
+        selectedCourses: { $elemMatch: { courseCode } },
+      });
 
-    // Save the updated list of courses back to the database
-    await Lecturer.findOneAndUpdate(
-      { email: req.body.email },
-      { $push: { selectedCourses: { $each: addedCourses } } },
-      { new: true }
-    );
-
-    // Refetch the updated list of courses from the database
-    const updatedLecturer = await Lecturer.findOne({ email: req.body.email });
-
-    // Respond with the updated list of courses
-    res.status(200).json({ courses: updatedLecturer.selectedCourses });
-  } else {
-    // If lecturer doesn't exist, create a new one with all the courses
-    const newLecturer = await Lecturer.create({
-      name: req.body.name,
-      email: req.body.email,
-      selectedCourses: req.body.courses,
-    });
-
-    res.status(201).json(newLecturer);
+      if (!otherLecturer) {
+        await Course.deleteOne({ courseCode });
+      }
+    }
   }
+
+  // If no new courses remain to be added and no courses to remove, send an error response
+  if (newCourses.length === 0 && removedCourseCodes.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "All courses already exist or are already removed" });
+  }
+
+  // Add new courses to the Course table and assign to the lecturer
+  for (let course of newCourses) {
+    let courseRecord = await Course.findOne({ courseCode: course.courseCode });
+    if (!courseRecord) {
+      courseRecord = new Course({
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+        lecturer: lecturer._id,
+        students: [],
+        attendance: [],
+      });
+      await courseRecord.save();
+    } else {
+      courseRecord.lecturer = lecturer._id;
+      await courseRecord.save();
+    }
+
+    // Add course to lecturer's selectedCourses if not already present
+    if (
+      !lecturer.selectedCourses.some((c) => c.courseCode === course.courseCode)
+    ) {
+      lecturer.selectedCourses.push({
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+      });
+    }
+  }
+
+  await lecturer.save();
+
+  // Refetch the updated list of courses from the database
+  const updatedLecturer = await Lecturer.findOne({ email });
+
+  // Respond with the updated list of courses
+  res.status(200).json({ courses: updatedLecturer.selectedCourses });
 });
 
 exports.getLecturerCourses = catchAsync(async (req, res, next) => {
@@ -140,9 +124,10 @@ exports.getEnrolledStudents = catchAsync(async (req, res, next) => {
 
   // Find the course by its course code and populate the 'students' field to get student details
   const course = await Course.findOne({ courseCode }).populate("students");
+  console.log("Course", course);
 
   if (!course) {
-    return new AppError("Course not found", 404);
+    return res.status(404).json({ message: "Course not found" });
   }
 
   res.status(200).json({ students: course.students });
@@ -156,7 +141,7 @@ exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
   const course = await Course.findOne({ courseCode });
 
   if (!course) {
-    return new AppError("Course not found", 404);
+    return res.status(404).json({ message: "Course not found" });
   }
 
   // Retrieve the attendance records for the course
@@ -208,12 +193,11 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
     .json({ message: `Course data for ${courseCode} has been resetted` });
 });
 
-// Endpoint for disenroll student for a course
 exports.disenrollStudent = catchAsync(async (req, res, next) => {
   const { courseCode, matricNo } = req.params;
   const modifiedMatricNo = matricNo.replace("_", "/");
 
-  console.log("courseCode", courseCode, matricNo);
+  console.log("Disenrolling student", courseCode, matricNo);
 
   // Find the course by its course code
   const course = await Course.findOne({ courseCode }).populate("students");
@@ -222,25 +206,43 @@ exports.disenrollStudent = catchAsync(async (req, res, next) => {
     return res.status(404).json({ message: "Course not found" });
   }
 
+  // Find the student by matriculation number
+  const student = await Student.findOne({ matricNo: modifiedMatricNo });
+
+  if (!student) {
+    return res.status(404).json({ message: "Student not found" });
+  }
+
   // Filter out the disenrolled student from the course's students list
   course.students = course.students.filter(
     (stu) => stu.matricNo !== modifiedMatricNo
   );
 
-  // Save the updated course with the removed student
-  await course.save();
-
   // Filter out the course from the student's courses list
-  const student = await Student.findOne({ matricNo: modifiedMatricNo });
   student.courses = student.courses.filter(
     (courseId) => courseId.toString() !== course._id.toString()
   );
 
-  // Send the updated list of students as a response
-  res.status(200).json({
-    message: `Student with ${modifiedMatricNo} has been disenrolled successfully`,
-    students: course.students,
-  });
+  if (student.courses.length === 0) {
+    // Store the student and course information in the response to handle the fingerprint removal
+    res.status(200).json({
+      message: `Student with ${modifiedMatricNo} is pending fingerprint removal before complete disenrollment`,
+      pendingRemoval: true,
+      matricNo: modifiedMatricNo,
+    });
+  } else {
+    // Save the updated student
+    await student.save();
+
+    // Save the updated course with the removed student
+    await course.save();
+
+    // Send the updated list of students as a response
+    res.status(200).json({
+      message: `Student with ${modifiedMatricNo} has been disenrolled successfully`,
+      students: course.students,
+    });
+  }
 });
 
 exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
