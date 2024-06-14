@@ -118,16 +118,42 @@ exports.enrollStudentWithWebsocket = catchAsync(
       await course.save();
 
       // This will be only be triggered if the enrolment was not successful and which means idOnsensor was not set
-      setTimeout(() => {
+      setTimeout(async () => {
+        console.log(
+          "Rolling back enrollment process for student with Matric No.",
+          student.matricNo,
+          "due to timeout"
+        );
+        // refetch the student from the database
+        student = await Student.findOne({ matricNo: student.matricNo });
+
         if (!student.idOnSensor) {
+          console.log(
+            "Rolling back actions for student with Matric No.",
+            student.matricNo
+          );
+
           // Rollback actions: Delete the created student and remove from course
-          Course.updateMany(
+          await Course.updateMany(
             { students: student._id },
             { $pull: { students: student._id } }
           );
-          Student.findByIdAndDelete(student._id);
+          await Student.findByIdAndDelete(student._id);
+
+          // Send response to the frontend with success message
+          return clients.forEach((client) => {
+            client.send(
+              JSON.stringify({
+                event: "enroll_feedback",
+                payload: {
+                  message: `Enrollment for student with Matric No. ${student.matricNo} failed`,
+                  error: true,
+                },
+              })
+            );
+          });
         }
-      }, 45000);
+      }, 60000);
 
       // Emit an 'enroll' event to ESP32 device
       return clients.forEach((client) => {
