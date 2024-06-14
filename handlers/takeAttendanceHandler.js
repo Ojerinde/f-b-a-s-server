@@ -80,7 +80,7 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
           courseCode: course.courseCode,
           startTime: startTime.toISOString(),
           stopTime: endTime.toISOString(),
-          enrolledStudentsId: registeredStudentsId,
+          enrolledStudentsId: registeredStudentsId.filter((id) => id !== null),
         },
       })
     );

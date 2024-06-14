@@ -117,6 +117,18 @@ exports.enrollStudentWithWebsocket = catchAsync(
       course.students.push(student._id);
       await course.save();
 
+      // This will be only be triggered if the enrolment was not successful and which means idOnsensor was not set
+      setTimeout(() => {
+        if (!student.idOnSensor) {
+          // Rollback actions: Delete the created student and remove from course
+          Course.updateMany(
+            { students: student._id },
+            { $pull: { students: student._id } }
+          );
+          Student.findByIdAndDelete(student._id);
+        }
+      }, 45000);
+
       // Emit an 'enroll' event to ESP32 device
       return clients.forEach((client) => {
         client.send(
