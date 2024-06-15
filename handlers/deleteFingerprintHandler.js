@@ -95,6 +95,7 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
         payload: {
           message: `Fingerprint and student data for ${student.matricNo} deleted successfully`,
           error: false,
+          students: course.students,
         },
       })
     );

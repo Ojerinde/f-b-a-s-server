@@ -72,6 +72,12 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
   );
 
   // Emit event to ESP32 with all the data of the students enrolled for the course
+  const enrolledStudentsId = registeredStudentsId.filter(
+    (id) => id !== null && id !== undefined
+  );
+
+  console.log("Enrolled Students ID", registeredStudentsId, enrolledStudentsId);
+
   return clients.forEach((client) => {
     client.send(
       JSON.stringify({
@@ -80,7 +86,7 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
           courseCode: course.courseCode,
           startTime: startTime.toISOString(),
           stopTime: endTime.toISOString(),
-          enrolledStudentsId: registeredStudentsId.filter((id) => id !== null),
+          enrolledStudentsId: enrolledStudentsId,
         },
       })
     );
