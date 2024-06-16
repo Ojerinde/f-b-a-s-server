@@ -63,14 +63,17 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
 
   // Archive students
   const archivedStudents = await ArchivedStudent.insertMany(
-    students.map((student) => ({ ...student.toObject(), _id: undefined }))
+    students.map((student) => ({
+      ...student.toObject(),
+      _id: student._id, // Retain original ID
+    }))
   );
 
   // Archive attendances
   const archivedAttendances = await ArchivedAttendance.insertMany(
     attendances.map((attendance) => ({
       ...attendance.toObject(),
-      _id: undefined,
+      _id: attendance._id, // Retain original ID
       studentsPresent: attendance.studentsPresent.map((stuPres) => {
         const archivedStudent = archivedStudents.find(
           (archivedStudent) =>
@@ -80,9 +83,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
           ? { ...stuPres, student: archivedStudent._id }
           : { ...stuPres, student: undefined };
       }),
-      course: courses.find(
-        (course) => course._id.toString() === attendance.course.toString()
-      )?._id,
+      course: attendance.course, // Direct reference to the course
     }))
   );
 
@@ -90,7 +91,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   const archivedCourses = await ArchivedCourse.insertMany(
     courses.map((course) => ({
       ...course.toObject(),
-      _id: undefined,
+      _id: course._id, // Retain original ID
       students: course.students.map((student) => {
         const archivedStudent = archivedStudents.find(
           (archivedStudent) => archivedStudent.matricNo === student.matricNo
@@ -99,7 +100,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
       }),
       attendance: course.attendance.map((att) => {
         const archivedAttendance = archivedAttendances.find(
-          (a) => a.date.getTime() === att.date.getTime()
+          (a) => a._id.toString() === att.toString()
         );
         return archivedAttendance ? archivedAttendance._id : undefined;
       }),
@@ -110,7 +111,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   const archivedLecturers = await ArchivedLecturer.insertMany(
     lecturers.map((lecturer) => ({
       ...lecturer.toObject(),
-      _id: undefined,
+      _id: lecturer._id, // Retain original ID
       selectedCourses: lecturer.selectedCourses.map((course) => {
         const archivedCourse = archivedCourses.find(
           (archivedCourse) => archivedCourse.courseCode === course.courseCode
