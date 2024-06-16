@@ -34,8 +34,15 @@ const clients = new Set();
 // Initialize WebSocket server
 const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
 
+function heartbeat() {
+  this.isAlive = true;
+}
+
 wss.on("connection", (ws) => {
   console.log("A client is connected");
+
+  ws.isAlive = true;
+  ws.on("pong", heartbeat);
 
   clients.add(ws);
 
@@ -85,6 +92,20 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     console.log("A client disconnected");
   });
+});
+
+// Implement heartbeat mechanism
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+
+    ws.isAlive = false;
+    ws.send(JSON.stringify({ event: "custom_ping" })); // Send custom ping
+  });
+}, 30000); // 30 seconds interval
+
+wss.on("close", () => {
+  clearInterval(interval);
 });
 
 connectToMongoDB()

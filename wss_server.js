@@ -43,8 +43,15 @@ const clients = new Set();
 // Initialize WebSocket server
 const wss = new WebSocket.Server({ server: httpsServer, path: "/ws" });
 
+// function heartbeat() {
+//   this.isAlive = true;
+// }
+
 wss.on("connection", (ws) => {
   console.log("A client is connected");
+
+  // ws.isAlive = true;
+  // ws.on("pong", heartbeat);
 
   clients.add(ws);
 
@@ -86,6 +93,9 @@ wss.on("connection", (ws) => {
       case "delete_fingerprint_response":
         deleteFingerprintFeedback(ws, clients, data.payload);
         break;
+      // case "custom_pong":
+      //   ws.isAlive = true; // Handle custom pong
+      //   break;
       default:
         console.log("Unknown event:", data.event);
     }
@@ -93,8 +103,23 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log("A client disconnected");
+    clients.delete(ws);
   });
 });
+
+// // Implement heartbeat mechanism
+// const interval = setInterval(() => {
+//   wss.clients.forEach((ws) => {
+//     if (ws.isAlive === false) return ws.terminate();
+
+//     ws.isAlive = false;
+//     ws.send(JSON.stringify({ event: "custom_ping" }));
+//   });
+// }, 30000);
+
+// wss.on("close", () => {
+//   clearInterval(interval);
+// });
 
 connectToMongoDB()
   .then(() => {

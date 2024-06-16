@@ -47,7 +47,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
         JSON.stringify({
           event: "clear_fingerprints_feedback",
           payload: {
-            message: `Fail to clear all fingerprints`,
+            message: `Failed to clear all fingerprints`,
             error: true,
           },
         })
@@ -61,61 +61,69 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   const lecturers = await Lecturer.find().populate("selectedCourses");
   const attendances = await Attendance.find();
 
+  // Archive students
   const archivedStudents = await ArchivedStudent.insertMany(
     students.map((student) => ({ ...student.toObject(), _id: undefined }))
   );
-  const archivedCourses = await ArchivedCourse.insertMany(
-    courses.map((course) => ({
-      ...course.toObject(),
-      _id: undefined,
-      students: course.students.map(
-        (student) =>
-          archivedStudents.find(
-            (archivedStudent) => archivedStudent.matricNo === student.matricNo
-          )._id
-      ),
-      attendance: course.attendance.map(
-        (att) =>
-          archivedAttendances.find(
-            (a) => a.date.getTime() === att.date.getTime()
-          )._id
-      ),
-    }))
-  );
-  const archivedLecturers = await ArchivedLecturer.insertMany(
-    lecturers.map((lecturer) => ({
-      ...lecturer.toObject(),
-      _id: undefined,
-      selectedCourses: lecturer.selectedCourses.map(
-        (course) =>
-          archivedCourses.find(
-            (archivedCourse) => archivedCourse.courseCode === course.courseCode
-          )._id
-      ),
-    }))
-  );
+
+  // Archive attendances
   const archivedAttendances = await ArchivedAttendance.insertMany(
     attendances.map((attendance) => ({
       ...attendance.toObject(),
       _id: undefined,
-      studentsPresent: attendance.studentsPresent.map((stuPres) => ({
-        ...stuPres,
-        student: archivedStudents.find(
+      studentsPresent: attendance.studentsPresent.map((stuPres) => {
+        const archivedStudent = archivedStudents.find(
           (archivedStudent) =>
             archivedStudent.matricNo === stuPres.student.matricNo
-        )._id,
-      })),
-      course: archivedCourses.find(
-        (archivedCourse) =>
-          archivedCourse.courseCode === attendance.course.courseCode
-      )._id,
+        );
+        return archivedStudent
+          ? { ...stuPres, student: archivedStudent._id }
+          : { ...stuPres, student: undefined };
+      }),
+      course: courses.find(
+        (course) => course._id.toString() === attendance.course.toString()
+      )?._id,
+    }))
+  );
+
+  // Archive courses
+  const archivedCourses = await ArchivedCourse.insertMany(
+    courses.map((course) => ({
+      ...course.toObject(),
+      _id: undefined,
+      students: course.students.map((student) => {
+        const archivedStudent = archivedStudents.find(
+          (archivedStudent) => archivedStudent.matricNo === student.matricNo
+        );
+        return archivedStudent ? archivedStudent._id : undefined;
+      }),
+      attendance: course.attendance.map((att) => {
+        const archivedAttendance = archivedAttendances.find(
+          (a) => a.date.getTime() === att.date.getTime()
+        );
+        return archivedAttendance ? archivedAttendance._id : undefined;
+      }),
+    }))
+  );
+
+  // Archive lecturers
+  const archivedLecturers = await ArchivedLecturer.insertMany(
+    lecturers.map((lecturer) => ({
+      ...lecturer.toObject(),
+      _id: undefined,
+      selectedCourses: lecturer.selectedCourses.map((course) => {
+        const archivedCourse = archivedCourses.find(
+          (archivedCourse) => archivedCourse.courseCode === course.courseCode
+        );
+        return archivedCourse ? archivedCourse._id : undefined;
+      }),
     }))
   );
 
   // Remove all courses and student enrollments
   await Course.deleteMany({});
   await Student.deleteMany({});
-  await Lecturer.updateMany({}, { $unset: { selectedCourses: [] } });
+  await Lecturer.updateMany({}, { $unset: { selectedCourses: 1 } });
   await Attendance.deleteMany({});
 
   return clients.forEach((client) => {
