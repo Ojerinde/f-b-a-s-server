@@ -45,10 +45,9 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     });
   }
 
-  // Set fiveMinuteAgo to 5 minutes ago
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const fiveMinutesAgo = new Date(lagosTime.getTime() - 5 * 60 * 1000);
+  console.log("fiveMinutesAgo", fiveMinutesAgo);
 
-  // Check if there is an attendance for the day within the last 5 minutes
   const existingAttendance = await Attendance.findOne({
     course: course._id,
     date: { $gte: fiveMinutesAgo },
@@ -160,12 +159,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    const attendanceDate = new Date(payload.data.date);
-    console.log(
-      "Attendance Date",
-      attendanceDate.getHours(),
-      attendanceDate.getMinutes()
-    );
+    const attendanceDate = payload.data.date;
 
     // Check if there is an attendance for the exact date and time
     const existingAttendance = await Attendance.findOne({
@@ -190,26 +184,19 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     // Find students based on their idOnSensor
     const studentRecords = await Promise.all(
       payload.data.students.map(async (stu) => {
-        console.log("Student ID on Sensor", stu.idOnSensor);
-
         const student = await Student.findOne({ idOnSensor: stu.idOnSensor });
 
         if (student) {
           return { student, time: stu.time };
         }
-        console.warn(`No student found with idOnSensor: ${stu.idOnSensor}`);
         return null;
       })
     );
-
-    console.log("Student Records", studentRecords);
 
     // Filter out null values if any student was not found or is not enrolled in the course
     const validStudentRecords = studentRecords.filter(
       (record) => record !== null
     );
-
-    console.log("Valid Student Records", validStudentRecords);
 
     if (validStudentRecords.length === 0) {
       return clients.forEach((client) => {
