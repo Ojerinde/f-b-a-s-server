@@ -20,7 +20,8 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     lagosTime.getMonth(),
     lagosTime.getDate(),
     lagosTime.getHours(),
-    lagosTime.getMinutes()
+    lagosTime.getMinutes(),
+    lagosTime.getSeconds()
   );
 
   const endTime = new Date(
@@ -44,12 +45,13 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     });
   }
 
-  // Check if there is an attendance for the day
-  const fiveMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+  // Set fiveMinuteAgo to 5 minutes ago
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
+  // Check if there is an attendance for the day within the last 5 minutes
   const existingAttendance = await Attendance.findOne({
     course: course._id,
-    date: { $gte: fiveMinuteAgo },
+    date: { $gte: fiveMinutesAgo },
   });
 
   if (existingAttendance) {
@@ -76,7 +78,21 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     (id) => id !== null && id !== undefined
   );
 
-  console.log("Enrolled Students ID", registeredStudentsId, enrolledStudentsId);
+  console.log("Enrolled Students ID", enrolledStudentsId);
+
+  if (enrolledStudentsId.length === 0) {
+    return clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          event: "attendance_feedback",
+          payload: {
+            message: `No student is enrolled for ${courseCode}`,
+            error: true,
+          },
+        })
+      );
+    });
+  }
 
   return clients.forEach((client) => {
     client.send(
@@ -95,7 +111,7 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
 
 exports.getAttendanceFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Attendance feedback received from ESP32", payload);
+    console.log("Attendance response received from ESP32", payload);
 
     if (payload.error) {
       return clients.forEach((client) => {
@@ -145,6 +161,11 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     }
 
     const attendanceDate = new Date(payload.data.date);
+    console.log(
+      "Attendance Date",
+      attendanceDate.getHours(),
+      attendanceDate.getMinutes()
+    );
 
     // Check if there is an attendance for the exact date and time
     const existingAttendance = await Attendance.findOne({
@@ -166,22 +187,17 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    // Remove duplicates based on idOnSensor
-    const uniqueStudents = payload.data.students.filter(
-      (stu, index, self) =>
-        index === self.findIndex((s) => s.idOnSensor === stu.idOnSensor)
-    );
-    console.log("Unique Students", uniqueStudents);
-
     // Find students based on their idOnSensor
     const studentRecords = await Promise.all(
-      uniqueStudents.map(async (stu) => {
-        const student = await Student.findOne({ idOnSensor: stu.idOnSensor });
-        console.log("Students And Course", student, course.students);
+      payload.data.students.map(async (stu) => {
+        console.log("Student ID on Sensor", stu.idOnSensor);
 
-        if (student && course.students.includes(student._id)) {
-          return { student: student._id, time: stu.time };
+        const student = await Student.findOne({ idOnSensor: stu.idOnSensor });
+
+        if (student) {
+          return { student, time: stu.time };
         }
+        console.warn(`No student found with idOnSensor: ${stu.idOnSensor}`);
         return null;
       })
     );

@@ -17,10 +17,6 @@ class Email {
   }
 
   newTransport() {
-    console.log("NODE_ENV:", process.env.NODE_ENV);
-    console.log("EMAIL_USERNAME:", process.env.EMAIL_USERNAME);
-    console.log("EMAIL_PASSWORD:", process.env.EMAIL_PASSWORD);
-
     if (process.env.NODE_ENV === "production") {
       return nodemailer.createTransport({
         host: "smtp.gmail.com",
