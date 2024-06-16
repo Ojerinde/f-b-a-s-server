@@ -7,26 +7,7 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     data.courseCode
   );
 
-  const { courseCode, time: attendanceTime } = data;
-  const [hours, minutes] = attendanceTime.split(":").map(Number);
-
-  // Get the current time in UTC and add 1 hour to get Lagos time
-  const now = new Date();
-  const lagosTimeOffset = 60 * 60 * 1000;
-  const lagosTime = new Date(now.getTime() + lagosTimeOffset);
-
-  const startTime = new Date(
-    lagosTime.getFullYear(),
-    lagosTime.getMonth(),
-    lagosTime.getDate(),
-    lagosTime.getHours(),
-    lagosTime.getMinutes(),
-    lagosTime.getSeconds()
-  );
-
-  const endTime = new Date(
-    startTime.getTime() + (hours * 60 + minutes) * 60 * 1000
-  );
+  const { courseCode, startTime, endTime } = data;
 
   // Find the course by its course code
   const course = await Course.findOne({ courseCode }).populate("students");
