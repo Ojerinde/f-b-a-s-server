@@ -2,10 +2,7 @@ const { Course, Attendance, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 
 exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
-  console.log(
-    "Started attendance marking process with Websocket for",
-    data.courseCode
-  );
+  console.log("Started attendance marking process with Websocket for", data);
 
   const { courseCode, startTime, endTime } = data;
 
@@ -25,6 +22,10 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
       );
     });
   }
+
+  const now = new Date();
+  const lagosTimeOffset = 60 * 60 * 1000;
+  const lagosTime = new Date(now.getTime() + lagosTimeOffset);
 
   const fiveMinutesAgo = new Date(lagosTime.getTime() - 5 * 60 * 1000);
   console.log("fiveMinutesAgo", fiveMinutesAgo);
@@ -80,8 +81,8 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
         event: "attendance_request",
         payload: {
           courseCode: course.courseCode,
-          startTime: startTime.toISOString(),
-          stopTime: endTime.toISOString(),
+          startTime: startTime,
+          stopTime: endTime,
           enrolledStudentsId: enrolledStudentsId,
         },
       })
