@@ -189,7 +189,61 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Enrollment feedback received from ESP32 device:", payload);
 
-    const { courseCode, matricNo, idOnSensor } = payload?.data;
+    const { courseCode, matricNo, idOnSensor } = payload?.data || {};
+
+    // Regular expressions for validation
+    const courseCodeRegex = /^ABC\s\d{3}$/; // Matches "ABC 000" format
+    const matricNoRegex = /^\d{2}\/\d{2}[A-Z]{2}\d{3}$/; // Matches "18/30GC056" format
+    const idOnSensorRegex = /^\d+$/; // Matches any positive integer
+
+    // Validate courseCode format
+    if (!courseCode || !courseCodeRegex.test(courseCode)) {
+      // If courseCode is missing or not in expected format, emit an error
+      clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: "Invalid courseCode format received from device",
+              error: true,
+            },
+          })
+        );
+      });
+      return;
+    }
+
+    // Validate matricNo format
+    if (!matricNo || !matricNoRegex.test(matricNo)) {
+      clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: "Invalid matricNo format received from device",
+              error: true,
+            },
+          })
+        );
+      });
+      return;
+    }
+
+    // Validate idOnSensor format
+    if (!idOnSensor || !idOnSensorRegex.test(idOnSensor)) {
+      clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: "Invalid idOnSensor format received from device",
+              error: true,
+            },
+          })
+        );
+      });
+      return;
+    }
 
     // Find the student by matricNo
     let student = await Student.findOne({ matricNo });
