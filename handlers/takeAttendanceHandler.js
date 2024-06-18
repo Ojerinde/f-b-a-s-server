@@ -1,5 +1,5 @@
 const schedule = require("node-schedule");
-const { Course, Attendance } = require("../models/appModel");
+const { Course, Attendance, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 
 const convertToUTC = (lagosTime) => {
@@ -105,7 +105,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
           payload: {
             courseCode: course.courseCode,
             startTime: startDate.toISOString(),
-            endTime: endDate.toISOString(),
+            stopTime: endDate.toISOString(),
             enrolledStudentsId: enrolledStudentsId,
           },
         })
