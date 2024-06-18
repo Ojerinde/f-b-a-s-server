@@ -192,7 +192,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     const { courseCode, matricNo, idOnSensor } = payload?.data || {};
 
     // Regular expressions for validation
-    const courseCodeRegex = /^ABC\s\d{3}$/; // Matches "ABC 000" format
+    const courseCodeRegex = /^[A-Z]{3}\s\d{3}$/; // Matches "ABC 000" format
     const matricNoRegex = /^\d{2}\/\d{2}[A-Z]{2}\d{3}$/; // Matches "18/30GC056" format
     const idOnSensorRegex = /^\d+$/; // Matches any positive integer
 
