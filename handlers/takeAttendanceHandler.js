@@ -1,7 +1,14 @@
-const { Course, Attendance, Student } = require("../models/appModel");
+const schedule = require("node-schedule");
+const { Course, Attendance } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 
-exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
+const convertToUTC = (lagosTime) => {
+  const date = new Date(lagosTime);
+  const utcTime = new Date(date.getTime() - 60 * 60 * 1000); // Convert from GMT+1 to GMT
+  return utcTime;
+};
+
+exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
   console.log("Started attendance marking process with Websocket for", data);
 
   const { courseCode, startTime, endTime } = data;
@@ -15,7 +22,7 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
         JSON.stringify({
           event: "attendance_feedback",
           payload: {
-            message: `Course ${courseCode} does not exist`,
+            message: `Course not found`,
             error: true,
           },
         })
@@ -23,72 +30,93 @@ exports.takeAttendanceWithWebsocket = catchAsync(async (ws, clients, data) => {
     });
   }
 
-  const now = new Date();
-  const lagosTimeOffset = 60 * 60 * 1000;
-  const lagosTime = new Date(now.getTime() + lagosTimeOffset);
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
 
-  const fiveMinutesAgo = new Date(lagosTime.getTime() - 5 * 60 * 1000);
-  console.log("fiveMinutesAgo", fiveMinutesAgo);
+  const scheduleDate = convertToUTC(startDate);
 
-  const existingAttendance = await Attendance.findOne({
-    course: course._id,
-    date: { $gte: fiveMinutesAgo },
-  });
-
-  if (existingAttendance) {
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "attendance_feedback",
-          payload: {
-            message: `Attendance has already been marked for ${courseCode} today`,
-            error: true,
-          },
-        })
-      );
-    });
-  }
-
-  // Get all registered student IDs for the course
-  const registeredStudentsId = course.students.map(
-    (student) => student.idOnSensor
+  console.log(
+    "Scheduling job for",
+    startDate,
+    "to",
+    endDate,
+    "UTC time",
+    scheduleDate
   );
 
-  // Emit event to ESP32 with all the data of the students enrolled for the course
-  const enrolledStudentsId = registeredStudentsId.filter(
-    (id) => id !== null && id !== undefined
-  );
+  // Schedule the job to emit the attendance event at the start time
+  schedule.scheduleJob(scheduleDate, async () => {
+    console.log("Schedule Attendance marking started for", course.courseCode);
+    const now = new Date();
 
-  console.log("Enrolled Students ID", enrolledStudentsId);
+    // Adding log to check the execution time
+    console.log("Job executed at:", now);
 
-  if (enrolledStudentsId.length === 0) {
-    return clients.forEach((client) => {
+    const fiveMinutesAgo = new Date(startDate.getTime() - 5 * 60 * 1000);
+    console.log("fiveMinutesAgo", fiveMinutesAgo);
+
+    const existingAttendance = await Attendance.findOne({
+      course: course._id,
+      date: { $gte: fiveMinutesAgo },
+    });
+
+    if (existingAttendance) {
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "attendance_feedback",
+            payload: {
+              message: `Attendance has already been marked for ${course.courseCode} today`,
+              error: true,
+            },
+          })
+        );
+      });
+    }
+
+    const registeredStudentsId = course.students.map(
+      (student) => student.idOnSensor
+    );
+
+    const enrolledStudentsId = registeredStudentsId.filter(
+      (id) => id !== null && id !== undefined
+    );
+
+    console.log("Enrolled Students ID", enrolledStudentsId);
+
+    if (enrolledStudentsId.length === 0) {
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "attendance_feedback",
+            payload: {
+              message: `No student is enrolled for ${course.courseCode}`,
+              error: true,
+            },
+          })
+        );
+      });
+    }
+
+    clients.forEach((client) => {
       client.send(
         JSON.stringify({
-          event: "attendance_feedback",
+          event: "attendance_request",
           payload: {
-            message: `No student is enrolled for ${courseCode}`,
-            error: true,
+            courseCode: course.courseCode,
+            startTime: startDate.toISOString(),
+            endTime: endDate.toISOString(),
+            enrolledStudentsId: enrolledStudentsId,
           },
         })
       );
     });
-  }
 
-  return clients.forEach((client) => {
-    client.send(
-      JSON.stringify({
-        event: "attendance_request",
-        payload: {
-          courseCode: course.courseCode,
-          startTime: startTime,
-          stopTime: endTime,
-          enrolledStudentsId: enrolledStudentsId,
-        },
-      })
+    console.log(
+      `Attendance marked for course ${course.courseCode} at ${startDate}`
     );
   });
-});
+};
 
 exports.getAttendanceFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
