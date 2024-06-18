@@ -35,44 +35,31 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
 
   const scheduleDate = convertToUTC(startDate);
 
-  console.log(
-    "Scheduling job for",
-    startDate,
-    "to",
-    endDate,
-    "UTC time",
-    scheduleDate
-  );
+  // Send a feedback immediately to the lecturer if there is an existing attendance for the course within the last 5 minutes
+  const TwentyFourHrs = new Date(startDate.getTime() - 24 * 60 * 1000);
+
+  const existingAttendance = await Attendance.findOne({
+    course: course._id,
+    date: { $gte: TwentyFourHrs },
+  });
+
+  if (existingAttendance) {
+    return clients.forEach((client) => {
+      client.send(
+        JSON.stringify({
+          event: "attendance_feedback",
+          payload: {
+            message: `Attendance has already been marked for ${course.courseCode} today`,
+            error: true,
+          },
+        })
+      );
+    });
+  }
 
   // Schedule the job to emit the attendance event at the start time
   schedule.scheduleJob(scheduleDate, async () => {
     console.log("Schedule Attendance marking started for", course.courseCode);
-    const now = new Date();
-
-    // Adding log to check the execution time
-    console.log("Job executed at:", now);
-
-    const fiveMinutesAgo = new Date(startDate.getTime() - 5 * 60 * 1000);
-    console.log("fiveMinutesAgo", fiveMinutesAgo);
-
-    const existingAttendance = await Attendance.findOne({
-      course: course._id,
-      date: { $gte: fiveMinutesAgo },
-    });
-
-    if (existingAttendance) {
-      return clients.forEach((client) => {
-        client.send(
-          JSON.stringify({
-            event: "attendance_feedback",
-            payload: {
-              message: `Attendance has already been marked for ${course.courseCode} today`,
-              error: true,
-            },
-          })
-        );
-      });
-    }
 
     const registeredStudentsId = course.students.map(
       (student) => student.idOnSensor
@@ -81,8 +68,6 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
     const enrolledStudentsId = registeredStudentsId.filter(
       (id) => id !== null && id !== undefined
     );
-
-    console.log("Enrolled Students ID", enrolledStudentsId);
 
     if (enrolledStudentsId.length === 0) {
       return clients.forEach((client) => {
@@ -111,10 +96,6 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
         })
       );
     });
-
-    console.log(
-      `Attendance marked for course ${course.courseCode} at ${startDate}`
-    );
   });
 };
 
