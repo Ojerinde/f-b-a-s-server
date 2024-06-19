@@ -37,7 +37,6 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     });
   }
 );
-
 exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Received Clear fingerprints feedback from ESP32 device:");
 
@@ -56,7 +55,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   }
 
   // Archive current data
-  const students = await Student.find();
+  const students = await Student.find().populate("courses");
   const courses = await Course.find().populate("students attendance");
   const lecturers = await Lecturer.find().populate("selectedCourses");
   const attendances = await Attendance.find();
@@ -69,22 +68,15 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
     }))
   );
 
-  // Archive attendances
   const archivedAttendances = await ArchivedAttendance.insertMany(
-    attendances.map((attendance) => ({
-      ...attendance.toObject(),
-      _id: attendance._id, // Retain original ID
-      studentsPresent: attendance.studentsPresent.map((stuPres) => {
-        const archivedStudent = archivedStudents.find(
-          (archivedStudent) =>
-            archivedStudent.matricNo === stuPres.student.matricNo
-        );
-        return archivedStudent
-          ? { ...stuPres, student: archivedStudent._id }
-          : { ...stuPres, student: undefined };
-      }),
-      course: attendance.course, // Direct reference to the course
-    }))
+    attendances.map((attendance) => {
+      return {
+        ...attendance.toObject(),
+        _id: attendance._id, // Retain original ID
+        studentsPresent: attendance.studentsPresent,
+        course: attendance.course, // Direct reference to the course
+      };
+    })
   );
 
   // Archive courses
@@ -92,18 +84,18 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
     courses.map((course) => ({
       ...course.toObject(),
       _id: course._id, // Retain original ID
-      students: course.students.map((student) => {
-        const archivedStudent = archivedStudents.find(
-          (archivedStudent) => archivedStudent.matricNo === student.matricNo
-        );
-        return archivedStudent ? archivedStudent._id : undefined;
-      }),
-      attendance: course.attendance.map((att) => {
-        const archivedAttendance = archivedAttendances.find(
-          (a) => a._id.toString() === att.toString()
-        );
-        return archivedAttendance ? archivedAttendance._id : undefined;
-      }),
+      students: course.students.map(
+        (student) =>
+          archivedStudents.find(
+            (archivedStudent) => archivedStudent.matricNo === student.matricNo
+          )?._id
+      ),
+      attendance: course.attendance.map(
+        (att) =>
+          archivedAttendances.find(
+            (a) => a._id.toString() === att._id.toString()
+          )?._id
+      ),
     }))
   );
 
@@ -112,22 +104,22 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
     lecturers.map((lecturer) => ({
       ...lecturer.toObject(),
       _id: lecturer._id, // Retain original ID
-      selectedCourses: lecturer.selectedCourses.map((course) => {
-        const archivedCourse = archivedCourses.find(
-          (archivedCourse) => archivedCourse.courseCode === course.courseCode
-        );
-        return archivedCourse ? archivedCourse._id : undefined;
-      }),
+      selectedCourses: lecturer.selectedCourses.map(
+        (course) =>
+          archivedCourses.find(
+            (archivedCourse) => archivedCourse.courseCode === course.courseCode
+          )?._id
+      ),
     }))
   );
 
-  // Remove all courses and student enrollments
   await Course.deleteMany({});
   await Student.deleteMany({});
   await Lecturer.updateMany({}, { $unset: { selectedCourses: 1 } });
   await Attendance.deleteMany({});
 
-  return clients.forEach((client) => {
+  // Send success feedback to clients
+  clients.forEach((client) => {
     client.send(
       JSON.stringify({
         event: "clear_fingerprints_feedback",

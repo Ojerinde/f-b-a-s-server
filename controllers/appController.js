@@ -163,7 +163,7 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
   const course = await Course.findOne({ courseCode });
 
   if (!course) {
-    return new AppError("Course not found", 404);
+    return res.status(404).json({ message: "Course not found" });
   }
 
   // Delete attendance records for the course
@@ -184,13 +184,16 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
 
   // Remove enrolled students from the course
   course.students = [];
-
-  // Save the updated course without enrolled students
   await course.save();
 
-  res
-    .status(200)
-    .json({ message: `Course data for ${courseCode} has been resetted` });
+  // Find students who are not enrolled in any courses anymore
+  const studentsNotEnrolled = await Student.find({ courses: { $size: 0 } });
+
+  return res.status(200).json({
+    message: `Course data for ${courseCode} has been reset`,
+    students: studentsNotEnrolled,
+    courseCode,
+  });
 });
 
 exports.disenrollStudent = catchAsync(async (req, res, next) => {

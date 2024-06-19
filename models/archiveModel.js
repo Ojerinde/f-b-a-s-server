@@ -14,7 +14,9 @@ const archivedCourseSchema = new mongoose.Schema({
   courseName: String,
   lecturer: { type: mongoose.Schema.Types.ObjectId, ref: "Lecturer" },
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "ArchivedStudent" }],
-  attendance: [{ type: mongoose.Schema.Types.ObjectId, ref: "Attendance" }],
+  attendance: [
+    { type: mongoose.Schema.Types.ObjectId, ref: "ArchivedAttendance" },
+  ],
   archivedAt: { type: Date, default: Date.now },
 });
 
