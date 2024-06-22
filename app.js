@@ -4,9 +4,11 @@ const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const xss = require("xss-clean");
+const path = require("path");
 
 // RouteHandler
 const authRouter = require("./routes/authRoutes");
+const levelAdviserAuthRouter = require("./routes/levelAdviserRoutes");
 const appRouter = require("./routes/appRoutes");
 
 // Utils
@@ -33,6 +35,9 @@ const limiter = rateLimit({
 
 app.use("/api", limiter);
 
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, "public")));
+
 // Body parser from the request. reading data from body into req.body
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
@@ -42,6 +47,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/auth/level_adviser", levelAdviserAuthRouter);
 app.use("/api/v1", appRouter);
 
 // Any request that makes it to this part has lost it's way

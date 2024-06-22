@@ -4,14 +4,18 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const { isPasswordValid } = require("../utils/validators");
 
-const userSchema = new mongoose.Schema({
+const levelAdviserSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, "Fullname is required"],
+  },
   title: {
     type: String,
     required: [true, "Title is required"],
   },
-  name: {
+  level: {
     type: String,
-    required: [true, "Name is required"],
+    required: [true, "Level is required"],
   },
   email: {
     type: String,
@@ -23,7 +27,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Password is required"],
-    min: [8, "MinLength should be 8"],
+    minlength: [8, "MinLength should be 8"],
     validate: {
       validator: function () {
         return isPasswordValid(this.password); // False triggers an error
@@ -31,17 +35,24 @@ const userSchema = new mongoose.Schema({
       message:
         "Password must include a number, an alphabet character, a symbol, and an uppercase letter.",
     },
-    select: false, // This doesn't work on create and save
+    select: false,
   },
   confirmPassword: {
     type: String,
-    required: [true, "Password is required"],
+    required: [true, "Confirm password is required"],
     validate: {
       // Custom validator. works on save and create.
       validator: function (el) {
         return el === this.password;
       },
-      message: "Passwords does not match",
+      message: "Passwords do not match",
+    },
+    select: false,
+  },
+  clearPhrase: {
+    type: String,
+    default: function () {
+      return `${this.title}-${this.name}-${this.level}`;
     },
     select: false,
   },
@@ -55,15 +66,14 @@ const userSchema = new mongoose.Schema({
     default: true,
     select: false,
   },
-
   passwordChangedAt: Date,
   passwordResetToken: String,
-  passwordResetTokenExpiresIn: String,
+  passwordResetTokenExpiresIn: Date,
   emailVerificationToken: String,
-  emailVerificationTokenExpiresIn: String,
+  emailVerificationTokenExpiresIn: Date,
 });
 
-userSchema.pre("save", async function (next) {
+levelAdviserSchema.pre("save", async function (next) {
   // Prevents the confirmPassword from entering DB
   this.confirmPassword = undefined;
 
@@ -77,15 +87,15 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-// Update the passwordModifiedAt after password change
-userSchema.pre("save", function (next) {
+// Update the passwordChangedAt after password change
+levelAdviserSchema.pre("save", function (next) {
   if (!this.isModified("password") || this.isNew) return next();
   this.passwordChangedAt = Date.now() - 1000; // setting it to 1 sec in the past cause the actual saving might happen after jwt is issued
   next();
 });
 
 // Generates Email Verification token
-userSchema.methods.genEmailVerificationToken = function () {
+levelAdviserSchema.methods.genEmailVerificationToken = function () {
   const emailVerificationToken = crypto.randomBytes(32).toString("hex");
   this.emailVerificationToken = crypto
     .createHash("sha256")
@@ -96,21 +106,21 @@ userSchema.methods.genEmailVerificationToken = function () {
 };
 
 // Generates password reset token
-userSchema.methods.genPasswordResetToken = function () {
+levelAdviserSchema.methods.genPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
   this.passwordResetToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-  // console.log({ resetToken }, this.passwordResetToken);
-  this.passwordResetTokenExpiresIn = Date.now() + 60 * 60 * 1000; // 30 minutes
+  this.passwordResetTokenExpiresIn = Date.now() + 60 * 60 * 1000; // 1 hour
   return resetToken;
 };
 
-userSchema.methods.correctPassword = async function (claimedPassword) {
+// Compare the given password with the stored hashed password
+levelAdviserSchema.methods.correctPassword = async function (claimedPassword) {
   return await bcrypt.compare(claimedPassword, this.password);
 };
 
-const User = mongoose.model("User", userSchema);
+const LevelAdviserUsers = mongoose.model("LevelAdviser", levelAdviserSchema);
 
-module.exports = User;
+module.exports = LevelAdviserUsers;

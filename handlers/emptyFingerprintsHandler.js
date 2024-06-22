@@ -6,13 +6,24 @@ const {
   ArchivedLecturer,
   ArchivedAttendance,
 } = require("../models/archiveModel");
+const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
 exports.clearFingerprintsWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log("Starting to clear all fingerprints with websocket");
 
+    const levelAdviser = await LevelAdviserUsers.findOne({
+      level: payload.level,
+    }).select("+clearPhrase");
+
+    if (!levelAdviser) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Level adviser not found for the specified level",
+      });
+    }
     // Send response to Web App
-    if (payload.clearPhrase !== process.env.PHRASE_TO_CLEAR_FINGERPRINTS) {
+    if (payload.clearPhrase !== levelAdviser.clearPhrase) {
       return clients.forEach((client) => {
         client.send(
           JSON.stringify({

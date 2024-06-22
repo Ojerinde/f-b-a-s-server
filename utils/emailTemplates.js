@@ -3,72 +3,255 @@ exports.generateEmailVerificationHTML = function (
   emailVerificationURL
 ) {
   return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>Automated Biometric Based Attendance System Email Verification</title>
-      </head>
-      <body>
-            <h1 style="color: #181a40; font-size: 24px; font-weight: bold;">Hello, ${firstName}.</h1>
-            <p style="color: #666; font-size: 16px;">Click the link below to verify your email:</p>
-            <a href="${emailVerificationURL}" style="background-color: #007bff; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px;">Verify Email</a>
-      </body>
-      </html>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Email Verification</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    color: #333;
+                }
+                img {
+                    width: 80px;
+                    height: 90px
+                }
+                .container {
+                    background-color: #fff;
+                    margin: 50px auto;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    max-width: 600px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 20px;
+                }
+                .header img {
+                    max-width: 150px;
+                }
+                .content {
+                    padding: 20px;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    margin: 20px 0;
+                    background-color: #181a40;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    text-align: center;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                   <img src="https://schooltry-tertiary-2.s3.eu-west-1.amazonaws.com/institutionLogos/Unilorin_6500995e76d79.jpeg" alt="Unilorin">
+                </div>
+                <div class="content">
+                    <h1>Hello, ${firstName}!</h1>
+                    <p>Click the button below to verify your email:</p>
+                    <a href="${emailVerificationURL}" class="button">Verify Email</a>
+                    <p>If the button above doesn't work, copy and paste the following URL into your browser:</p>
+                    <p>${emailVerificationURL}</p>
+                </div>
+            </div>
+        </body>
+        </html>
       `;
 };
 
 exports.generateResetPasswordHTML = function (firstName, resetPasswordUrl) {
   return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-            <title>Automated Biometric Based Attendance System Email Verification</title>
-      </head>
-      <body>
-      <h1 style="color: #181a40; font-size: 24px; font-weight: bold;">Password Reset</h1>
-      <p style="color: #666; font-size: 16px;">Hello ${firstName},</p>
-      <p style="color: #666; font-size: 16px;">We received a request to reset your password. If you did not make this request, please ignore this email.</p>
-      <p style="color: #666; font-size: 16px;">To reset your password, please click the following link:</p>
-      <a href="${resetPasswordUrl}" style="background-color: #007bff; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px; margin-bottom: 10px;">Reset Password</a>
-      <p style="color: #666; font-size: 16px;">If the above link doesn't work, copy and paste the following URL into your browser's address bar:</p>
-      <p style="color: #666; font-size: 16px; margin-bottom: 10px;">${resetPasswordUrl}</p>
-      <p style="color: #666; font-size: 16px;">This link will expire in 10 minutes.</p>
-      <p style="color: #666; font-size: 16px;">Thank you,</p>
-      <p style="color: #666; font-size: 16px;">Attendance System</p>
-      </body>
-      </html>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reset Password</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    color: #333;
+                }
+                img {
+                    width: 80px;
+                    height: 90px
+                }
+                .container {
+                    background-color: #fff;
+                    margin: 50px auto;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    max-width: 600px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 20px;
+                }
+                .header img {
+                    max-width: 150px;
+                }
+                .content {
+                    padding: 20px;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 15px 25px;
+                    margin: 20px 0;
+                    background-color: #181a40;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    text-align: center;
+                }
+                  .button:hover {
+                  background-color: #181a40;
+                  }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                     <img src="https://schooltry-tertiary-2.s3.eu-west-1.amazonaws.com/institutionLogos/Unilorin_6500995e76d79.jpeg" alt="Unilorin">
+                </div>
+                <div class="content">
+                    <h1>Password Reset</h1>
+                    <p>Hello ${firstName},</p>
+                    <p>We received a request to reset your password. If you did not make this request, please ignore this email.</p>
+                    <p>To reset your password, please click the following button:</p>
+                    <a href="${resetPasswordUrl}" class="button">Reset Password</a>
+                    <p>If the above link doesn't work, copy and paste the following URL into your browser:</p>
+                    <p>${resetPasswordUrl}</p>
+                    <p>This link will expire in 1 hour.</p>
+                    <p>Thank you,</p>
+                    <p>Attendance System</p>
+                </div>
+            </div>
+        </body>
+        </html>
       `;
 };
 
 exports.generateResetPasswordSuccessHTML = function () {
   return `
-      <html>
-      <head>
-          <title>Password Reset Successful</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
-            <h1 style="color: #333; font-size: 24px; font-weight: bold; margin-bottom: 10px;">Password Reset Successful</h1>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Your password has been successfully reset.</p>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">You can now use your new password to log in.</p>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
-            <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for choosing Attendance System!</p>
-      </body>
-      </html>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Password Reset Successful</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    color: #333;
+                }
+                 img {
+                    width: 80px;
+                    height: 90px
+                }
+                .container {
+                    background-color: #fff;
+                    margin: 50px auto;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    max-width: 600px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 20px;
+                }
+                .header img {
+                    max-width: 150px;
+                }
+                .content {
+                    padding: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                <img src="https://schooltry-tertiary-2.s3.eu-west-1.amazonaws.com/institutionLogos/Unilorin_6500995e76d79.jpeg" alt="Unilorin">
+                </div>
+                <div class="content">
+                    <h1>Password Reset Successful</h1>
+                    <p>Your password has been successfully reset. You can now use your new password to log in.</p>
+                    <p>Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
+                    <p>Thank you for choosing Attendance System!</p>
+                </div>
+            </div>
+        </body>
+        </html>
       `;
 };
 
-exports.generateEnrollmentSuccessHTML = function (courseCode) {
+exports.generateEnrollmentSuccessHTML = function (courseCode, firstName) {
   return `
-          <html>
-          <head>
-              <title>Enrollment Successful</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
-                <h1 style="color: #333; font-size: 24px; font-weight: bold; margin-bottom: 10px;">Successful Enrollment</h1>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">You have successfully been enrolled for ${courseCode}.</p>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
-                <p style="color: #666; font-size: 16px; margin-bottom: 10px;">Thank you for choosing Attendance System!</p>
-          </body>
-          </html>
-          `;
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Enrollment Successful</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    color: #333;
+                }
+                img {
+                    width: 80px;
+                    height: 90px
+                }
+                .container {
+                    background-color: #fff;
+                    margin: 50px auto;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    max-width: 600px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 20px;
+                }
+                .header img {
+                    max-width: 150px;
+                }
+                .content {
+                    padding: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+              <img src="https://schooltry-tertiary-2.s3.eu-west-1.amazonaws.com/institutionLogos/Unilorin_6500995e76d79.jpeg" alt="Unilorin">
+                </div>
+                <div class="content">
+                    <h1>Enrollment Successful</h1>
+                    <p>Hello ${firstName},</p>
+                    <p>You have successfully been enrolled for ${courseCode}.</p>
+                    <p>Should you have any additional questions or concerns, please don't hesitate to reach out to our dedicated support team.</p>
+                    <p>Thank you for choosing Attendance System!</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `;
 };

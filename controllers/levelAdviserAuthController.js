@@ -3,7 +3,9 @@ const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const Email = require("../utils/email");
-const User = require("../models/userModel");
+const LevelAdviser = require("../models/levelAdviserUserModel");
+const { fail } = require("assert");
+const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -45,7 +47,7 @@ const sendVerificationEmail = async (user, req, res, next) => {
   const emailVerificationToken = user.genEmailVerificationToken();
   await user.save({ validateBeforeSave: false }); // To save the emailVerification token and expires from the genEmailVerification method.
 
-  const emailVerificationUrl = `${process.env.CLIENT_URL}/verify_email/${emailVerificationToken}`;
+  const emailVerificationUrl = `${process.env.CLIENT_URL}/level_adviser/verify_email/${emailVerificationToken}`;
 
   try {
     await new Email(user, emailVerificationUrl).sendEmailVerification();
@@ -57,7 +59,7 @@ const sendVerificationEmail = async (user, req, res, next) => {
   } catch (error) {
     console.log("error", error, user);
     // Delete user if verification email could not be sent
-    await User.findByIdAndDelete(user._id);
+    await LevelAdviser.findByIdAndDelete(user._id);
     await user.save({ validateBeforeSave: false });
     return next(
       new AppError("There was an error sending the email. Try again later!"),
@@ -70,16 +72,18 @@ exports.signup = catchAsync(async (req, res, next) => {
   console.log("Signing up for ", req.body);
 
   // 1. Check if user exist
-  const checkUser = await User.findOne({ email: req.body.email });
+  const checkUser = await LevelAdviser.findOne({ email: req.body.email });
+
   if (checkUser) {
     return next(new AppError("User with email already exist.", 400));
   }
 
   // 2. Create a user, set verify to false until the user verify the email.
-  const unverifiedUser = await User.create({
-    name: req.body.name,
+  const unverifiedUser = await LevelAdviser.create({
+    name: req.body.fullname,
     title: req.body.title,
     email: req.body.email,
+    level: req.body.level,
     password: req.body.password,
     confirmPassword: req.body.confirmPassword,
   });
@@ -95,7 +99,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     .update(emailVerificationToken)
     .digest("hex");
 
-  const unverifiedUser = await User.findOne({
+  const unverifiedUser = await LevelAdviser.findOne({
     emailVerificationToken: hashedToken,
     emailVerificationTokenExpiresIn: { $gt: Date.now() },
   });
@@ -132,7 +136,7 @@ exports.login = catchAsync(async (req, res, next) => {
     );
 
   // 2. Check if the user exists and is active, confirm the password
-  const claimedUser = await User.findOne({ email }).select(
+  const claimedUser = await LevelAdviser.findOne({ email }).select(
     "+password +verified +active"
   );
   if (
@@ -162,7 +166,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const { email } = req.body;
-  const user = await User.findOne({ email });
+  const user = await LevelAdviser.findOne({ email });
 
   if (!user) {
     return next(new AppError(`User with email, ${email} does not exist!`, 404));
@@ -183,7 +187,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.genPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetPasswordUrl = `${process.env.CLIENT_URL}/reset_password/${resetToken}`;
+  const resetPasswordUrl = `${process.env.CLIENT_URL}/level_adviser/reset_password/${resetToken}`;
 
   try {
     await new Email(user, resetPasswordUrl).sendPasswordReset();
@@ -208,7 +212,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   const { token } = req.params;
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-  const user = await User.findOne({
+  const user = await LevelAdviser.findOne({
     passwordResetToken: hashedToken,
     passwordResetTokenExpiresIn: { $gt: Date.now() }, // this confirms that the token hasn't expired
   });
@@ -228,7 +232,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   // Done using the userSchema
 
   // 4) Send password reset success email
-  const resetPasswordUrl = `${process.env.CLIENT_URL}/reset_password/${token}`;
+  const resetPasswordUrl = `${process.env.CLIENT_URL}/level_adviser/reset_password/${token}`;
 
   try {
     await new Email(user, resetPasswordUrl).sendPasswordResetSuccess();
@@ -249,7 +253,7 @@ exports.deactivateAccount = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
   // 1. Get the user
-  const user = await User.findOne({ email });
+  const user = await LevelAdviser.findOne({ email });
 
   // 2. If user exists, deactivate the account
   if (user) {
@@ -272,7 +276,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   const { email, oldPassword, newPassword, confirmNewPassword } = req.body;
 
   // 1. Get the User
-  const user = await User.findOne({ email }).select("+password");
+  const user = await LevelAdviser.findOne({ email }).select("+password");
 
   // 2. Check the provided password
   if (!(await user.correctPassword(oldPassword))) {
@@ -292,7 +296,7 @@ exports.reactivateAccount = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   // 1. Get the User
-  const user = await User.findOne({ email }).select("+password");
+  const user = await LevelAdviser.findOne({ email }).select("+password");
 
   if (user) {
     user.active = true;
@@ -308,4 +312,61 @@ exports.reactivateAccount = catchAsync(async (req, res, next) => {
       )
     );
   }
+});
+
+exports.updatePhrase = catchAsync(async (req, res, next) => {
+  console.log("Updating Phrase for:", req.body.email);
+  const { phrase, email } = req.body;
+  if (!phrase) {
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Phrase is not defined" });
+  }
+
+  const updatedLevelAdviser = await LevelAdviserUsers.findOneAndUpdate(
+    { email },
+    { clearPhrase: phrase },
+    { new: true, runValidators: true }
+  ).select("+clearPhrase");
+
+  if (!updatedLevelAdviser) {
+    return res
+      .status(404)
+      .json({ status: "fail", message: "Level Adviser not found" });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      la: updatedLevelAdviser,
+    },
+  });
+});
+
+exports.fetchPhrase = catchAsync(async (req, res, next) => {
+  console.log("Fetching Phrase for:", req.params.email);
+  const { email } = req.params;
+
+  if (!email) {
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Email is not defined" });
+  }
+
+  const levelAdviser = await LevelAdviserUsers.findOne({ email }).select(
+    "+clearPhrase"
+  );
+
+  if (!levelAdviser) {
+    return res
+      .status(404)
+      .json({ status: "fail", message: "Level Adviser not found" });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      clearPhrase: levelAdviser.clearPhrase,
+    },
+  });
 });
