@@ -23,6 +23,7 @@ const archivedCourseSchema = new mongoose.Schema({
 const archivedLecturerSchema = new mongoose.Schema({
   name: String,
   email: String,
+  title: String,
   selectedCourses: [
     { type: mongoose.Schema.Types.ObjectId, ref: "ArchivedCourse" },
   ],

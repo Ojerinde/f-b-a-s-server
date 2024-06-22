@@ -1,6 +1,9 @@
 const schedule = require("node-schedule");
 const { Course, Attendance, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
+const {
+  checkAttendanceAndNotify,
+} = require("../utils/sendNotificationForMissedAttendance");
 
 const convertToUTC = (lagosTime) => {
   const date = new Date(lagosTime);
@@ -36,7 +39,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
   const scheduleDate = convertToUTC(startDate);
 
   // Send a feedback immediately to the lecturer if there is an existing attendance for the course within the last 5 minutes
-  const TwentyFourHrs = new Date(startDate.getTime() - 24 * 60 * 1000);
+  const TwentyFourHrs = new Date(startDate.getTime() - 5 * 60 * 1000);
 
   const existingAttendance = await Attendance.findOne({
     course: course._id,
@@ -216,7 +219,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     course.attendance.push(newAttendance._id);
     await course.save();
 
-    return clients.forEach((client) => {
+    clients.forEach((client) => {
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -227,5 +230,9 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
         })
       );
     });
+
+    // Send notification to students who missed three consecutive classes
+    await checkAttendanceAndNotify(payload.data.courseCode);
+    return;
   }
 );

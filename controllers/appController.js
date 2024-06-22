@@ -5,7 +5,7 @@ const { Lecturer, Course, Student, Attendance } = require("../models/appModel");
 exports.createLecturer = catchAsync(async (req, res, next) => {
   console.log("Creating Lecturer with", req.body);
 
-  const { name, email, courses: requestedCourses } = req.body;
+  const { name, email, title, courses: requestedCourses } = req.body;
 
   // Filter out courses that are already assigned to another lecturer
   const newCourses = [];
@@ -30,7 +30,12 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   if (!lecturer) {
     // Create a new lecturer
-    lecturer = await Lecturer.create({ name, email, selectedCourses: [] });
+    lecturer = await Lecturer.create({
+      name,
+      email,
+      title,
+      selectedCourses: [],
+    });
   }
 
   // Remove courses from the lecturer's selectedCourses that are not in the request

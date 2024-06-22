@@ -5,6 +5,7 @@ const Schema = mongoose.Schema;
 const lecturerSchema = new Schema({
   name: String,
   email: String,
+  title: String,
   selectedCourses: [
     {
       courseCode: String,
