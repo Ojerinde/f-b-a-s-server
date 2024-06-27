@@ -1,4 +1,4 @@
-const { Student, Course } = require("../models/appModel");
+const { Student, Course, Attendance } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 
 exports.deleteFingerprintWithWebsocket = catchAsync(
@@ -47,7 +47,7 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
 
 exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Fingerprint removal feedback received:", payload);
-  const { studentIds, courseCode } = payload.data;
+  const { studentsIds, courseCode } = payload.data;
 
   if (payload.error) {
     return clients.forEach((client) => {
@@ -65,13 +65,13 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
 
   let student, course;
 
-  for (const studentId of studentIds) {
-    // Find the student by idOnSensor
+  for (const studentId of studentsIds) {
     student = await Student.findOne({
-      idOnSensor: studentId,
+      idOnSensor: +studentId,
     });
+
     if (!student) {
-      return clients.forEach((client) => {
+      clients.forEach((client) => {
         client.send(
           JSON.stringify({
             event: "delete_fingerprint_feedback",
@@ -82,6 +82,7 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
           })
         );
       });
+      continue;
     }
 
     // Find the course by courseCode
@@ -92,9 +93,9 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
     if (!course) continue;
 
     // delete the student from the course
-    course.students = course.students.filter(
-      (stu) => stu.idOnSensor !== studentId
-    );
+    course.students = course.students.filter((stu) => {
+      return stu.idOnSensor !== +studentId;
+    });
     await course.save();
 
     // Remove the student from attendance records of this course
@@ -120,7 +121,11 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
       JSON.stringify({
         event: "delete_fingerprint_feedback",
         payload: {
-          message: `Fingerprint and student data for ${student?.matricNo} deleted successfully`,
+          message: `Fingerprint${
+            studentsIds.length === 1 ? "" : "s"
+          } and student${
+            studentsIds.length === 1 ? "" : "s"
+          } data has been deleted successfully`,
           error: false,
           students: course?.students,
         },
