@@ -3,34 +3,42 @@ const catchAsync = require("../utils/catchAsync");
 
 exports.deleteFingerprintWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Deleting Fingerprint for:", payload.matricNo);
-    const student = await Student.findOne({ matricNo: payload.matricNo });
+    console.log("Deleting Fingerprint for students:", payload.students);
 
-    if (!student) {
-      return clients.forEach((client) => {
+    // Find students based on matriculation numbers
+    const students = await Student.find({
+      matricNo: { $in: payload.students },
+    });
+
+    if (!students || students.length === 0) {
+      // Send feedback if no students found
+      clients.forEach((client) => {
         client.send(
           JSON.stringify({
             event: "delete_fingerprint_feedback",
             payload: {
-              message: `Student with ${payload.matricNo} not found`,
+              message:
+                "No students found with the provided matriculation numbers",
               error: true,
             },
           })
         );
       });
+      return;
     }
 
-    const studentIdOnSensor = student.idOnSensor;
+    const deletePayload = {
+      studentsIds: students.map((student) => student.idOnSensor),
+      courseCode: payload.courseCode,
+    };
+    console.log("Deleting Payload:", deletePayload);
 
     // Emit event to ESP32
     return clients.forEach((client) => {
       client.send(
         JSON.stringify({
           event: "delete_fingerprint_request",
-          payload: {
-            idOnSensor: `${studentIdOnSensor}`,
-            courseCode: `${payload.courseCode}`,
-          },
+          payload: deletePayload,
         })
       );
     });
@@ -39,6 +47,7 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
 
 exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Fingerprint removal feedback received:", payload);
+  const { studentIds, courseCode } = payload.data;
 
   if (payload.error) {
     return clients.forEach((client) => {
@@ -54,38 +63,56 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
     });
   }
 
-  // Find the student by idOnSensor
-  const student = await Student.findOne({
-    idOnSensor: payload.data.idOnSensor,
-  });
+  let student, course;
 
-  if (!student) {
-    return clients.forEach((client) => {
-      client.send(
-        JSON.stringify({
-          event: "delete_fingerprint_feedback",
-          payload: {
-            message: `Student with ${student.matricNo} not found`,
-            error: true,
-          },
-        })
-      );
+  for (const studentId of studentIds) {
+    // Find the student by idOnSensor
+    student = await Student.findOne({
+      idOnSensor: studentId,
     });
+    if (!student) {
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "delete_fingerprint_feedback",
+            payload: {
+              message: `Student not found`,
+              error: true,
+            },
+          })
+        );
+      });
+    }
+
+    // Find the course by courseCode
+    course = await Course.findOne({
+      courseCode: courseCode,
+    }).populate("students");
+
+    if (!course) continue;
+
+    // delete the student from the course
+    course.students = course.students.filter(
+      (stu) => stu.idOnSensor !== studentId
+    );
+    await course.save();
+
+    // Remove the student from attendance records of this course
+    await Attendance.updateMany(
+      { course: course._id },
+      { $pull: { studentsPresent: { student: student._id } } }
+    );
+
+    // Check if the student is enrolled in any other courses
+    const studentCourses = await Course.find({
+      students: student._id,
+    });
+
+    // If the student is not enrolled in any other courses, delete the student
+    if (studentCourses.length === 0) {
+      await Student.findByIdAndDelete(student._id);
+    }
   }
-
-  // Find the course to remove the student
-  const course = await Course.findOne({
-    courseCode: payload.data.courseCode,
-  }).populate("students");
-
-  // delete the student from the course
-  course.students = course.students.filter(
-    (stu) => stu.idOnSensor !== payload.data.idOnSensor
-  );
-  await course.save();
-
-  // Delete the student from the database
-  await Student.findByIdAndDelete(student._id);
 
   // Send success feedback to clients
   return clients.forEach((client) => {
@@ -93,9 +120,9 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
       JSON.stringify({
         event: "delete_fingerprint_feedback",
         payload: {
-          message: `Fingerprint and student data for ${student.matricNo} deleted successfully`,
+          message: `Fingerprint and student data for ${student?.matricNo} deleted successfully`,
           error: false,
-          students: course.students,
+          students: course?.students,
         },
       })
     );
