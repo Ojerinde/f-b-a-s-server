@@ -1,6 +1,7 @@
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { Lecturer, Course, Student, Attendance } = require("../models/appModel");
+const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
 exports.createLecturer = catchAsync(async (req, res, next) => {
   console.log("Creating Lecturer with", req.body);
