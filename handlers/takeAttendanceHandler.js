@@ -153,13 +153,15 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    const attendanceDate = payload.data.date;
+    // const attendanceDate = payload.data.date;
+    const attendanceDate = new Date(payload.data.date);
 
     // Check if there is an attendance for the exact date and time
     const existingAttendance = await Attendance.findOne({
       course: course._id,
       date: attendanceDate,
     });
+    console.log("Existing attendance", existingAttendance);
 
     if (existingAttendance) {
       return clients.forEach((client) => {

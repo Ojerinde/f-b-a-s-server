@@ -13,6 +13,7 @@ router.get(
 );
 
 router.get("/courses/:courseCode/enroll", appController.getEnrolledStudents);
+router.get("/courses/:courseCode/reports", appController.getCourseReports);
 
 router.get(
   "/courses/:courseCode/:matricNo",
@@ -28,10 +29,6 @@ router.delete("/courses/:courseCode/reset", appController.deleteCourseData);
 /////////////////////////
 // Archive routes
 router.get("/archived_lecturers", archiveController.getArchivedLecturers);
-// router.get(
-//   "/archived_courses/:lecturerId",
-//   archiveController.getLecturerCourses
-// );
 router.get("/archived_students/:courseId", archiveController.getCourseStudents);
 router.get(
   "/archived_attendance/:courseId",

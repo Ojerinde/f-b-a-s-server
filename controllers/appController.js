@@ -121,7 +121,6 @@ exports.getLecturerCourses = catchAsync(async (req, res, next) => {
   res.status(200).json({ courses: loggedInLecturer.selectedCourses });
 });
 
-// Endpoint for fetching all students enrolled in a course
 exports.getEnrolledStudents = catchAsync(async (req, res, next) => {
   console.log("Getting Enrolled Students for", req.params);
 
@@ -138,12 +137,11 @@ exports.getEnrolledStudents = catchAsync(async (req, res, next) => {
   res.status(200).json({ students: course.students });
 });
 
-// Endpoint for fetching attendance records for a course
 exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
   const { courseCode } = req.params;
 
   // Find the course by its course code
-  const course = await Course.findOne({ courseCode });
+  const course = await Course.findOne({ courseCode }).populate("students");
 
   if (!course) {
     return res.status(404).json({ message: "Course not found" });
@@ -157,10 +155,22 @@ exports.getAttendanceRecords = catchAsync(async (req, res, next) => {
     model: "Student",
   });
 
-  res.status(200).json({ attendanceRecords });
+  const totalEnrolledStudents = course.students.length;
+
+  const attendanceRecordsWithPercentage = attendanceRecords.map((record) => {
+    const studentsPresentCount = record.studentsPresent.length;
+    const attendancePercentage =
+      (studentsPresentCount / totalEnrolledStudents) * 100;
+
+    return {
+      ...record.toObject(),
+      attendancePercentage: attendancePercentage.toFixed(2),
+    };
+  });
+
+  res.status(200).json({ attendanceRecords: attendanceRecordsWithPercentage });
 });
 
-// Endpoint for deleting attendance records and enrolled students for a course
 exports.deleteCourseData = catchAsync(async (req, res, next) => {
   const { courseCode } = req.params;
 
@@ -331,5 +341,79 @@ exports.getStudentOtherDetails = catchAsync(async (req, res, next) => {
     courses: student.courses,
     courseAttendances,
     overallAttendancePercentage,
+  });
+});
+
+exports.getCourseReports = catchAsync(async (req, res, next) => {
+  const { courseCode } = req.params;
+  console.log("Getting Course Reports for", courseCode);
+
+  // Get the level from courseCode
+  const level = parseInt(courseCode.match(/\d+/)[0].charAt(0)) * 100;
+
+  // Find the level adviser for the level
+  const levelAdviser = await LevelAdviserUsers.findOne({ level });
+
+  // Find the course by its course code
+  const course = await Course.findOne({ courseCode })
+    .populate("students")
+    .populate("lecturer");
+
+  if (!course) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Course not found",
+    });
+  }
+
+  // Find all attendance records for the course
+  const attendanceRecords = await Attendance.find({ course: course._id });
+
+  // Get the list of students enrolled in the course
+  const enrolledStudents = course.students;
+
+  const totalClasses = attendanceRecords.length;
+
+  const studentsWithAttendance = enrolledStudents.map((student) => {
+    const presentCount = attendanceRecords.filter((record) =>
+      record.studentsPresent.some(
+        (att) => att.student.toString() === student._id.toString()
+      )
+    ).length;
+
+    const attendancePercentage = (presentCount / totalClasses) * 100;
+
+    return {
+      student,
+      attendancePercentage: attendancePercentage.toFixed(2),
+    };
+  });
+
+  // Sort students by the last three digits of their matric number
+  studentsWithAttendance.sort((a, b) => {
+    const aMatricLastThree = a.student.matricNo.slice(-3);
+    const bMatricLastThree = b.student.matricNo.slice(-3);
+    return aMatricLastThree.localeCompare(bMatricLastThree, undefined, {
+      numeric: true,
+    });
+  });
+
+  const aboveFiftyPercent = studentsWithAttendance.filter(
+    (record) => record.attendancePercentage > 50
+  );
+
+  const belowOrEqualFiftyPercent = studentsWithAttendance.filter(
+    (record) => record.attendancePercentage <= 50
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      aboveFiftyPercent,
+      belowOrEqualFiftyPercent,
+      totalEnrolledStudents: enrolledStudents.length,
+      levelAdviser,
+      lecturer: course.lecturer,
+    },
   });
 });
