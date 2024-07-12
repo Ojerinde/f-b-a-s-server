@@ -47,7 +47,15 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
 
 exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Fingerprint removal feedback received:", payload);
-  const { studentsIds, courseCode } = payload.data;
+
+  const { studentsIds, courseCode } = payload;
+  console.log(
+    "Students IDs:",
+    studentsIds,
+    studentsIds.length,
+    "Course Code:",
+    courseCode
+  );
 
   if (payload.error) {
     return clients.forEach((client) => {

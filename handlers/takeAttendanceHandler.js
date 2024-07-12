@@ -60,6 +60,19 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
     });
   }
 
+  // Send feedback to the lecturer that the attendance has been scheduled successfully
+  clients.forEach((client) => {
+    client.send(
+      JSON.stringify({
+        event: "attendance_feedback",
+        payload: {
+          message: "Attendance has been scheduled successfully",
+          error: false,
+        },
+      })
+    );
+  });
+
   // Schedule the job to emit the attendance event at the start time
   schedule.scheduleJob(scheduleDate, async () => {
     console.log("Schedule Attendance marking started for", course.courseCode);
