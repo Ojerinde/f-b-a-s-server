@@ -10,7 +10,7 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   // Filter out courses that are already assigned to another lecturer
   const newCourses = [];
-  const courseCodes = requestedCourses.map((course) => course.courseCode);
+  const assignedCourses = [];
 
   for (let course of requestedCourses) {
     // Check if the course is assigned to any lecturer
@@ -18,12 +18,24 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
       courseCode: course.courseCode,
     });
     if (courseRecord && courseRecord.lecturer) {
-      console.log(
-        `Course ${course.courseCode} is already assigned to another lecturer`
-      );
+      assignedCourses.push(course.courseCode);
     } else {
       newCourses.push(course);
     }
+  }
+
+  if (assignedCourses.length > 0 && newCourses.length === 0) {
+    return res.status(400).json({
+      message: `Courses ${assignedCourses.join(
+        ", "
+      )} are already assigned to another lecturer`,
+    });
+  } else if (assignedCourses.length > 0) {
+    // res.status(400).json({
+    //   message: `Courses ${assignedCourses.join(
+    //     ", "
+    //   )} are already assigned to another lecturer`,
+    // });
   }
 
   // Check if the lecturer already exists based on email
@@ -68,7 +80,6 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
       }
     }
   }
-
   // If no new courses remain to be added and no courses to remove, send an error response
   if (newCourses.length === 0 && removedCourseCodes.length === 0) {
     return res
@@ -108,9 +119,13 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   // Refetch the updated list of courses from the database
   const updatedLecturer = await Lecturer.findOne({ email });
-
   // Respond with the updated list of courses
-  res.status(200).json({ courses: updatedLecturer.selectedCourses });
+  return res.status(200).json({
+    courses: updatedLecturer.selectedCourses,
+    message: `Please be aware that the courses ${assignedCourses.join(
+      ", "
+    )} are already allocated to another lecturer.`,
+  });
 });
 
 exports.getLecturerCourses = catchAsync(async (req, res, next) => {
@@ -118,7 +133,11 @@ exports.getLecturerCourses = catchAsync(async (req, res, next) => {
   const loggedInLecturer = await Lecturer.findOne({
     email: req.params.lecturerEmail,
   });
-
+  if (!loggedInLecturer) {
+    return res.status(404).json({
+      message: "Update your profile to fully setup a lecturer account for you",
+    });
+  }
   res.status(200).json({ courses: loggedInLecturer.selectedCourses });
 });
 
