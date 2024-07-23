@@ -7,15 +7,12 @@ const {
 } = require("../models/archiveModel");
 
 exports.getArchivedLecturers = catchAsync(async (req, res, next) => {
-  console.log("getArchivedLecturers called");
-
   const lecturers = await ArchivedLecturer.find().populate("selectedCourses");
-
   res.status(200).json(lecturers);
 });
 
 exports.getCourseStudents = catchAsync(async (req, res, next) => {
-  console.log("getCourseStudents called with", req.params);
+  console.log("Getting Course Students called with", req.params);
 
   const { courseId } = req.params;
 
@@ -44,22 +41,16 @@ exports.getCourseStudents = catchAsync(async (req, res, next) => {
     course: courseId,
   }).populate("studentsPresent.student");
 
-  console.log("attendances: ", attendances);
-
   const studentAttendanceCount = {};
 
   attendances.forEach((attendance) => {
-    console.log("Processing attendance record: ", attendance);
     attendance.studentsPresent.forEach(({ student }) => {
-      console.log("Processing student in attendance: ", student);
       if (!studentAttendanceCount[student._id]) {
         studentAttendanceCount[student._id] = 0;
       }
       studentAttendanceCount[student._id]++;
     });
   });
-
-  console.log("studentAttendanceCount: ", studentAttendanceCount);
 
   const studentsWithAttendance = course.students.map((student) => {
     const attendanceCount = studentAttendanceCount[student._id] || 0;
@@ -71,8 +62,7 @@ exports.getCourseStudents = catchAsync(async (req, res, next) => {
     };
   });
 
-  console.log("studentsWithAttendance: ", studentsWithAttendance);
-  res.status(200).json(studentsWithAttendance);
+  return res.status(200).json(studentsWithAttendance);
 });
 
 exports.getCourseAttendance = catchAsync(async (req, res, next) => {

@@ -25,6 +25,9 @@ exports.checkAttendanceAndNotify = catchAsync(async (courseCode) => {
 
   const totalClasses = attendanceRecords.length;
 
+  // If the total number of classes is less than 4, do not send any notification
+  if (totalClasses < 4) return;
+
   for (const student of enrolledStudents) {
     const missedCount = attendanceRecords.filter(
       (record) =>

@@ -22,6 +22,7 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
         message: "Level adviser not found for the specified level",
       });
     }
+
     // Send response to Web App
     if (payload.clearPhrase !== levelAdviser.clearPhrase) {
       return clients.forEach((client) => {
@@ -126,7 +127,8 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
 
   await Course.deleteMany({});
   await Student.deleteMany({});
-  await Lecturer.updateMany({}, { $unset: { selectedCourses: 1 } });
+  // await Lecturer.updateMany({}, { $unset: { selectedCourses: 1 } });
+  await Lecturer.deleteMany({});
   await Attendance.deleteMany({});
 
   // Send success feedback to clients

@@ -120,11 +120,16 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
   // Refetch the updated list of courses from the database
   const updatedLecturer = await Lecturer.findOne({ email });
   // Respond with the updated list of courses
+
+  const message =
+    assignedCourses.length > 0
+      ? `Please be aware that the courses ${assignedCourses.join(
+          ", "
+        )} are already allocated to another lecturer.`
+      : "Lecturer created successfully";
   return res.status(200).json({
     courses: updatedLecturer.selectedCourses,
-    message: `Please be aware that the courses ${assignedCourses.join(
-      ", "
-    )} are already allocated to another lecturer.`,
+    message,
   });
 });
 
