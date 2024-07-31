@@ -16,7 +16,7 @@ const createSendToken = (user, statusCode, req, res) => {
   // Send jwt as cookie to client
   const cookieOptions = {
     expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 60 * 60 * 1000 // 24 hours
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 60 * 60 * 1000 
     ),
     httpOnly: true,
   };
@@ -35,6 +35,7 @@ const createSendToken = (user, statusCode, req, res) => {
   return res.status(statusCode).json({
     success: true,
     token,
+    tokenExpiresIn: process.env.JWT_COOKIE_EXPIRES_IN,
     data: {
       user,
     },
@@ -100,13 +101,22 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     emailVerificationTokenExpiresIn: { $gt: Date.now() },
   });
 
-  if (!unverifiedUser)
+  const userToDelete = await User.findOne({
+    emailVerificationToken: hashedToken,
+  });
+
+
+  if (!unverifiedUser) {
+    // Delete user if the user could not be verified
+    await User.findByIdAndDelete(userToDelete._id);
+
     return next(
       new AppError(
         "Email verification link is invalid or has expired. Sign up again to get a new link.",
         400
       )
     );
+  }
 
   unverifiedUser.verified = true;
   unverifiedUser.emailVerificationToken = undefined;
@@ -115,7 +125,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 
   return res.status(200).json({
     success: true,
-    message: "Email veirification successful, Proceed to Log in",
+    message: "Email veirification successful, Proceed to Login",
   });
 });
 

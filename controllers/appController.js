@@ -8,38 +8,36 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   const { name, email, title, courses: requestedCourses } = req.body;
 
+  // Check if the lecturer already exists based on email
+  let lecturer = await Lecturer.findOne({ email });
+
   // Filter out courses that are already assigned to another lecturer
   const newCourses = [];
   const assignedCourses = [];
+  const existingCourses = [];
 
   for (let course of requestedCourses) {
-    // Check if the course is assigned to any lecturer
-    const courseRecord = await Course.findOne({
-      courseCode: course.courseCode,
-    });
-    if (courseRecord && courseRecord.lecturer) {
-      assignedCourses.push(course.courseCode);
+    const courseRecord = await Course.findOne({ courseCode: course.courseCode });
+    console.log('courseRecord', courseRecord);
+    if (courseRecord) {
+      if (courseRecord.lecturer && courseRecord.lecturer.toString() !== lecturer._id.toString()) {
+        assignedCourses.push(course.courseCode);
+      } else {
+        existingCourses.push(course.courseCode);
+      }
     } else {
       newCourses.push(course);
     }
   }
 
   if (assignedCourses.length > 0 && newCourses.length === 0) {
-    return res.status(400).json({
-      message: `Courses ${assignedCourses.join(
+    return next(
+      new AppError(`${assignedCourses.join(
         ", "
-      )} are already assigned to another lecturer`,
-    });
-  } else if (assignedCourses.length > 0) {
-    // res.status(400).json({
-    //   message: `Courses ${assignedCourses.join(
-    //     ", "
-    //   )} are already assigned to another lecturer`,
-    // });
+      )} ${assignedCourses.length === 1 ? 'is' : 'are'} already assigned to another lecturer`),
+      400
+    );
   }
-
-  // Check if the lecturer already exists based on email
-  let lecturer = await Lecturer.findOne({ email });
 
   if (!lecturer) {
     // Create a new lecturer
@@ -80,11 +78,13 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
       }
     }
   }
+
   // If no new courses remain to be added and no courses to remove, send an error response
   if (newCourses.length === 0 && removedCourseCodes.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "All courses already exist or are already removed" });
+    return next(
+      new AppError("All courses already exist or are already removed"),
+      400
+    );
   }
 
   // Add new courses to the Course table and assign to the lecturer
@@ -105,9 +105,7 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
     }
 
     // Add course to lecturer's selectedCourses if not already present
-    if (
-      !lecturer.selectedCourses.some((c) => c.courseCode === course.courseCode)
-    ) {
+    if (!lecturer.selectedCourses.some((c) => c.courseCode === course.courseCode)) {
       lecturer.selectedCourses.push({
         courseCode: course.courseCode,
         courseName: course.courseName,
@@ -119,19 +117,21 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   // Refetch the updated list of courses from the database
   const updatedLecturer = await Lecturer.findOne({ email });
-  // Respond with the updated list of courses
 
+  // Respond with the updated list of courses
   const message =
     assignedCourses.length > 0
       ? `Please be aware that the courses ${assignedCourses.join(
-          ", "
-        )} are already allocated to another lecturer.`
+        ", "
+      )} are already allocated to another lecturer.`
       : "Lecturer created successfully";
+
   return res.status(200).json({
     courses: updatedLecturer.selectedCourses,
     message,
   });
 });
+
 
 exports.getLecturerCourses = catchAsync(async (req, res, next) => {
   // Fetch all active courses for the logged-in lecturer
@@ -222,15 +222,16 @@ exports.deleteCourseData = catchAsync(async (req, res, next) => {
     })
   );
 
-  // Remove enrolled students from the course
+  // Remove enrolled students and the attendance data from the course
   course.students = [];
+  course.attendance = [];
   await course.save();
 
   // Find students who are not enrolled in any courses anymore
   const studentsNotEnrolled = await Student.find({ courses: { $size: 0 } });
 
   return res.status(200).json({
-    message: `Course data for ${courseCode} has been reset`,
+    message: `${courseCode} data has been reset successfully`,
     students: studentsNotEnrolled,
     courseCode,
   });

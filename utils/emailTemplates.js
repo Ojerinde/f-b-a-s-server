@@ -59,6 +59,7 @@ exports.generateEmailVerificationHTML = function (
                     <h1>Hello, ${firstName}!</h1>
                     <p>Click the button below to verify your email:</p>
                     <a href="${emailVerificationURL}" class="button">Verify Email</a>
+                    <p>Please note that the link will remain active for only one hour.</p>
                     <p>If the button above doesn't work, copy and paste the following URL into your browser:</p>
                     <p>${emailVerificationURL}</p>
                 </div>
