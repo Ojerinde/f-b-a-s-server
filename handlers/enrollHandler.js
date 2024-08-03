@@ -65,6 +65,9 @@ exports.enrollStudentWithWebsocket = catchAsync(
       course.students.push(student._id);
       await course.save();
 
+      // Send Mail to student
+      await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
+
       return clients.forEach((client) => {
         client.send(
           JSON.stringify({
@@ -291,7 +294,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     await student.save();
 
     // Send Mail to student
-    await new Email(student, "").sendEnrollmentSuccessful(course.courseCode,);
+    await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
     // Send response to the frontend with success message
     return clients.forEach((client) => {
