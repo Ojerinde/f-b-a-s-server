@@ -7,7 +7,7 @@ const {
   generateAttendanceAlertHTML,
 } = require("./emailTemplates");
 
-exports.checkAttendanceAndNotify = catchAsync(async (courseCode) => {
+exports.checkAttendanceAndNotify = catchAsync(async (courseCode, studentsInCurrentAttendance) => {
   console.log("Sending", courseCode, "attendance alert and report");
 
   // Find the course by its course code
@@ -26,7 +26,7 @@ exports.checkAttendanceAndNotify = catchAsync(async (courseCode) => {
   const totalClasses = attendanceRecords.length;
 
   // If the total number of classes is less than 4, do not send any notification
-  if (totalClasses < 4) return;
+  if (totalClasses < 3) return;
 
   for (const student of enrolledStudents) {
     const missedCount = attendanceRecords.filter(
@@ -46,9 +46,19 @@ exports.checkAttendanceAndNotify = catchAsync(async (courseCode) => {
     }
   }
 
-  if (studentsMissedMoreThanHalf.length > 0) {
-    // Send email to students who missed more than 50% of the classes
-    for (const { student, missedPercentage } of studentsMissedMoreThanHalf) {
+  // Filter out students who are not in the current attendance to send mail to
+  const studentToSendMailTo = studentsMissedMoreThanHalf.filter(
+    (missedStudent) =>
+      !studentsInCurrentAttendance.some(
+        (currentStudent) =>
+          currentStudent &&
+          currentStudent.student.matricNo === missedStudent.student.matricNo
+      )
+  );
+
+  if (studentToSendMailTo.length > 0) {
+    // Send email to students who missed more than 50% of the classes and are not in the current attendance
+    for (const { student, missedPercentage } of studentToSendMailTo) {
       const emailContent = generateAttendanceAlertHTML(
         student.name,
         courseCode,
@@ -59,7 +69,7 @@ exports.checkAttendanceAndNotify = catchAsync(async (courseCode) => {
     }
 
     // Compile names, matric numbers, and missed percentages of students
-    const studentDetails = studentsMissedMoreThanHalf.map(
+    const studentDetails = studentToSendMailTo.map(
       ({ student, missedPercentage }) => ({
         name: student.name,
         matricNo: student.matricNo,

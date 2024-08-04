@@ -247,7 +247,6 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     });
 
     // Send notification to students who missed three consecutive classes
-    await checkAttendanceAndNotify(payload.data.courseCode);
-    return;
+    return checkAttendanceAndNotify(payload.data.courseCode, validStudentRecords);
   }
 );
