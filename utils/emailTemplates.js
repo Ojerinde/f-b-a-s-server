@@ -378,7 +378,7 @@ exports.generateAttendanceReportHTML = function (
     title: "Attendance Report",
     heading: "Attendance Report",
     firstName: recipientName,
-    body: `The following students have missed more than 50% of the classes for the course ${courseCode}:`,
+    body: `The following students were not present today and have also missed more than 50% of the classes for the course ${courseCode}:`,
     table: tableHTML,
   });
 };
