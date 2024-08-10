@@ -16,7 +16,7 @@ const createSendToken = (user, statusCode, req, res) => {
   // Send jwt as cookie to client
   const cookieOptions = {
     expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 60 * 60 * 1000 
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 60 * 60 * 1000
     ),
     httpOnly: true,
   };
@@ -60,10 +60,9 @@ const sendVerificationEmail = async (user, req, res, next) => {
     // Delete user if verification email could not be sent
     await User.findByIdAndDelete(user._id);
     await user.save({ validateBeforeSave: false });
-    return next(
-      new AppError("There was an error sending the email. Try again later!"),
-      500
-    );
+    return res.status(500).json({
+      message: "There was an error sending the email. Try again later!",
+    });
   }
 };
 
@@ -73,7 +72,9 @@ exports.signup = catchAsync(async (req, res, next) => {
   // 1. Check if user exist
   const checkUser = await User.findOne({ email: req.body.email });
   if (checkUser) {
-    return next(new AppError("User with email already exist.", 400));
+    return res.status(400).json({
+      message: "User with email already exist.",
+    });
   }
 
   // 2. Create a user, set verify to false until the user verify the email.
@@ -105,7 +106,6 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     emailVerificationToken: hashedToken,
   });
 
-
   if (!unverifiedUser) {
     // Delete user if the user could not be verified
     await User.findByIdAndDelete(userToDelete._id);
@@ -134,12 +134,10 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 1. Confirm the payload
   if (!email || !claimedCorrectPassword)
-    return next(
-      new AppError(
-        `We need both your email and password to let you into the club!" 😄🔐📧`,
-        400
-      )
-    );
+    return res.status(400).json({
+      message:
+        "We need both your email and password to let you into the club! 😄🔐📧",
+    });
 
   // 2. Check if the user exists and is active, confirm the password
   const claimedUser = await User.findOne({ email }).select(
@@ -150,20 +148,16 @@ exports.login = catchAsync(async (req, res, next) => {
     !(await claimedUser.correctPassword(claimedCorrectPassword)) ||
     !claimedUser.active
   ) {
-    return next(
-      new AppError(
-        "Oh dear! Seems like either your email or password is wrong.",
-        400
-      )
-    );
+    return res.status(400).json({
+      message: "Oh dear! Seems like either your email or password is wrong.",
+    });
   }
 
   if (!claimedUser?.verified) {
-    return next(
-      new AppError(
-        `Your email has not been verified yet. Please check your inbox for a verification email`
-      )
-    );
+    return res.status(400).json({
+      message:
+        "Your email has not been verified yet. Please check your inbox for a verification email",
+    });
   }
 
   // 3. Create and send a token
@@ -175,7 +169,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email });
 
   if (!user) {
-    return next(new AppError(`User with email, ${email} does not exist!`, 404));
+    return res.status(404).json({
+      message: `User with email, ${email} does not exist!`,
+    });
   }
 
   // Check if the user already has a valid reset token that hasn't expired
@@ -206,10 +202,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     user.passwordResetToken = undefined;
     user.passwordResetTokenExpiresIn = undefined;
     await user.save({ validateBeforeSave: false });
-    return next(
-      new AppError("There was an error sending the email. Try again later!"),
-      500
-    );
+    return res.status(500).json({
+      message: `There was an error sending the email. Try again later!`,
+    });
   }
 });
 
@@ -225,7 +220,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
   // 2) If token has not expired, and there is user, set the new password
   if (!user) {
-    return next(new AppError("Token is invalid or has expired", 400));
+    return res.status(400).json({
+      message: `Token is invalid or has expired`,
+    });
   }
 
   const { password, confirmPassword } = req.body;
@@ -248,10 +245,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
       message: `Account Password Reset Successful`,
     });
   } catch (error) {
-    return next(
-      new AppError("There was an error sending the email. Try again later!"),
-      500
-    );
+    return res.status(500).json({
+      message: `There was an error sending the email. Try again later!`,
+    });
   }
 });
 
@@ -286,7 +282,9 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 
   // 2. Check the provided password
   if (!(await user.correctPassword(oldPassword))) {
-    return next(new AppError("Old password is incorrect!", 401));
+    return res.status(401).json({
+      message: `Old password is incorrect!`,
+    });
   }
 
   // 3. Update password
@@ -312,10 +310,8 @@ exports.reactivateAccount = catchAsync(async (req, res, next) => {
       message: "Account reactivated successfully",
     });
   } else {
-    return next(
-      new AppError(
-        `User with email, ${email} does not exist. Please check the email and try again.`
-      )
-    );
+    return res.status(404).json({
+      message: `User with email, ${email} does not exist. Please check the email and try again.`,
+    });
   }
 });

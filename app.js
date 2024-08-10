@@ -52,7 +52,9 @@ app.use("/api/v1", appRouter);
 
 // Any request that makes it to this part has lost it's way
 app.all("*", (req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  return res.status(404).json({
+    message: `Can't find ${req.originalUrl} on this server!`,
+  });
 });
 
 // This handles app wide error
