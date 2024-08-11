@@ -1,5 +1,4 @@
 const catchAsync = require("../utils/catchAsync");
-const AppError = require("../utils/appError");
 const { Lecturer, Course, Student, Attendance } = require("../models/appModel");
 const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
@@ -17,10 +16,15 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
   const existingCourses = [];
 
   for (let course of requestedCourses) {
-    const courseRecord = await Course.findOne({ courseCode: course.courseCode });
-    console.log('courseRecord', courseRecord);
+    const courseRecord = await Course.findOne({
+      courseCode: course.courseCode,
+    });
+    console.log("courseRecord", courseRecord);
     if (courseRecord) {
-      if (courseRecord.lecturer && courseRecord.lecturer.toString() !== lecturer._id.toString()) {
+      if (
+        courseRecord.lecturer &&
+        courseRecord.lecturer.toString() !== lecturer._id.toString()
+      ) {
         assignedCourses.push(course.courseCode);
       } else {
         existingCourses.push(course.courseCode);
@@ -31,12 +35,11 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
   }
 
   if (assignedCourses.length > 0 && newCourses.length === 0) {
-    return next(
-      new AppError(`${assignedCourses.join(
-        ", "
-      )} ${assignedCourses.length === 1 ? 'is' : 'are'} already assigned to another lecturer`),
-      400
-    );
+    return res.status(400).json({
+      message: `${assignedCourses.join(", ")} ${
+        assignedCourses.length === 1 ? "is" : "are"
+      } already assigned to another lecturer`,
+    });
   }
 
   if (!lecturer) {
@@ -81,10 +84,9 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
 
   // If no new courses remain to be added and no courses to remove, send an error response
   if (newCourses.length === 0 && removedCourseCodes.length === 0) {
-    return next(
-      new AppError("All courses already exist or are already removed"),
-      400
-    );
+    return res.status(400).json({
+      message: "All courses already exist or are already removed",
+    });
   }
 
   // Add new courses to the Course table and assign to the lecturer
@@ -105,7 +107,9 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
     }
 
     // Add course to lecturer's selectedCourses if not already present
-    if (!lecturer.selectedCourses.some((c) => c.courseCode === course.courseCode)) {
+    if (
+      !lecturer.selectedCourses.some((c) => c.courseCode === course.courseCode)
+    ) {
       lecturer.selectedCourses.push({
         courseCode: course.courseCode,
         courseName: course.courseName,
@@ -122,8 +126,8 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
   const message =
     assignedCourses.length > 0
       ? `Please be aware that the courses ${assignedCourses.join(
-        ", "
-      )} are already allocated to another lecturer.`
+          ", "
+        )} are already allocated to another lecturer.`
       : "Lecturer created successfully";
 
   return res.status(200).json({
@@ -131,7 +135,6 @@ exports.createLecturer = catchAsync(async (req, res, next) => {
     message,
   });
 });
-
 
 exports.getLecturerCourses = catchAsync(async (req, res, next) => {
   // Fetch all active courses for the logged-in lecturer

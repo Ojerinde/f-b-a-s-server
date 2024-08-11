@@ -26,8 +26,6 @@ exports.getCourseStudents = catchAsync(async (req, res, next) => {
     course: courseId,
   });
 
-  console.log("totalClasses: ", totalClasses);
-
   if (totalClasses === 0) {
     return res.status(200).json(
       course.students.map((student) => ({
@@ -72,8 +70,6 @@ exports.getCourseAttendance = catchAsync(async (req, res, next) => {
   const attendanceRecords = await ArchivedAttendance.find({
     course: courseId,
   }).populate("studentsPresent.student");
-
-  console.log("attendanceRecords: ", attendanceRecords.studentsPresent);
 
   res.status(200).json(attendanceRecords);
 });
