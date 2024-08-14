@@ -19,8 +19,14 @@ jobs:
           HOST: ${{ secrets.HOST }}
           USER: ${{ secrets.USER }}
         run: |
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
+          # Ensure the .ssh directory exists
+          mkdir -p ~/.ssh
+
+          # Write the SSH private key to a file
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/private_key.pem
+          chmod 600 ~/.ssh/private_key.pem
+
+          # Add the EC2 instance to known_hosts to avoid interactive prompts
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
 
       - name: Deploy to EC2
@@ -28,8 +34,8 @@ jobs:
           HOST: ${{ secrets.HOST }}
           USER: ${{ secrets.USER }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            # Navigate to the project directory
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key.pem $USER@$HOST << 'EOF'
+            # Navigate to your project directory
             cd /home/ubuntu/f-b-a-s-server
 
             # Pull the latest code from the repository
@@ -40,4 +46,6 @@ jobs:
 
             # Restart the application with PM2
             pm2 restart fbas-v1
+
+            # Optionally, you can also add commands to manage logs or perform cleanup
           EOF
