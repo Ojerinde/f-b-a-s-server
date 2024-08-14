@@ -31,10 +31,10 @@ const PORT = 443;
 
 const options = {
   key: fs.readFileSync(
-    "/etc/letsencrypt/archive/api.envisionlixarchitects.com/privkey1.pem"
+    "/etc/letsencrypt/live/api.smartattendancesystem.com.ng/privkey.pem"
   ),
   cert: fs.readFileSync(
-    "/etc/letsencrypt/archive/api.envisionlixarchitects.com/fullchain1.pem"
+    "/etc/letsencrypt/live/api.smartattendancesystem.com.ng/fullchain.pem"
   ),
 };
 
