@@ -57,7 +57,7 @@ function initWebSocketServer() {
     ws.on("message", async (message) => {
       const data = JSON.parse(message);
       console.log(`${data?.event} event received from client`);
-      console.log("COnsole befor switch", data);
+      console.log("Console before switch", data);
 
       const clients = wss.clients;
       console.log("Clients", clients.size);
