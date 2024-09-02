@@ -1,7 +1,7 @@
 const { createServer } = require("https");
 const WebSocket = require("ws");
 const fs = require("fs");
-const { Course, Student } = require("./models/appModel");
+const { Course, Student, DevicesConnected } = require("./models/appModel");
 require("dotenv").config();
 
 const app = require("./app");
@@ -57,7 +57,6 @@ function initWebSocketServer() {
     ws.on("message", async (message) => {
       const data = JSON.parse(message);
       console.log(`${data?.event} event received from client`);
-      console.log("Console before switch", data);
 
       const clients = wss.clients;
       console.log("Clients", clients.size);
@@ -67,12 +66,6 @@ function initWebSocketServer() {
           console.log(`Client identified as:`, data);
           ws.clientType = data.clientType.toLowerCase();
           ws.clientType = data.source.toLowerCase();
-          console.log("Hey after lower case");
-          console.log(
-            "I got here to hardware if",
-            data.source,
-            data.clientType
-          );
 
           if (data.source === "web_app" && data.clientType) {
           }
