@@ -458,11 +458,14 @@ exports.getDevicesConnected = catchAsync(async (req, res, next) => {
   console.log("Getting Device Connected ");
 
   const devicesConnected = await DevicesConnected.find();
-  console.log(devicesConnected);
+  const modifiedDevicesConected = devicesConnected.map(
+    (device) => device.deviceLocation
+  );
+  console.log(modifiedDevicesConected);
 
   res.status(200).json({
     status: "success",
-    devicesConnected,
+    devicesConnected: modifiedDevicesConected,
   });
 });
 
