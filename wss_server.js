@@ -56,7 +56,9 @@ function initWebSocketServer() {
     // Handle incoming messages
     ws.on("message", async (message) => {
       const data = JSON.parse(message);
-      console.log(`${data} event received from client`);
+      console.log(
+        `${data?.event} event with${data?.payload} received from client`
+      );
 
       const clients = wss.clients;
 

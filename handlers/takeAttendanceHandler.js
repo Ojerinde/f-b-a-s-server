@@ -11,10 +11,10 @@ const convertToUTC = (lagosTime) => {
   return utcTime;
 };
 
-exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
-  console.log("Started attendance marking process with Websocket for", data);
+exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
+  console.log("Started attendance marking process with Websocket for", payload);
 
-  const { courseCode, startTime, endTime, deviceData } = data;
+  const { courseCode, startTime, endTime, deviceData } = payload;
 
   // Find the course by its course code
   const course = await Course.findOne({ courseCode }).populate("students");

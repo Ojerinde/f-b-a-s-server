@@ -7,7 +7,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log(
       "Starting enrollment process with WebSocket for",
-      clients.size,
+
       payload
     );
 

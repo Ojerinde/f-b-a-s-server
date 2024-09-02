@@ -43,28 +43,22 @@ wss.on("connection", (ws) => {
   // Handle incoming messages
   ws.on("message", async (message) => {
     const data = JSON.parse(message);
-    console.log(`${data?.event} event received from client`);
+    console.log(
+      `${data?.event} event with ${data?.payload} received from client`
+    );
 
     const clients = wss.clients;
-    console.log("Clients", clients.size);
 
     switch (data?.event) {
       case "identify":
         console.log(`Client identified as:`, data);
         ws.clientType = data.clientType.toLowerCase();
         ws.clientType = data.source.toLowerCase();
-        console.log("Hey after lower case");
-        console.log("I got here to hardware if", data.source, data.clientType);
 
         if (data.source === "web_app" && data.clientType) {
         }
 
         if (data.source === "hardware" && data.clientType) {
-          console.log(
-            "I got here to hardware if",
-            data.source,
-            data.clientType
-          );
           const existingDevice = await DevicesConnected.findOne({
             deviceLocation: data.clientType.toLowerCase(),
           });
@@ -81,7 +75,7 @@ wss.on("connection", (ws) => {
         takeAttendanceWithWebsocket(ws, clients, data.payload);
         break;
       case "esp32_data":
-        esp32DetailsWithWebsocket(ws, clients);
+        esp32DetailsWithWebsocket(ws, clients, data.payload);
         break;
       case "clear_fingerprints":
         clearFingerprintsWithWebsocket(ws, clients, data.payload);

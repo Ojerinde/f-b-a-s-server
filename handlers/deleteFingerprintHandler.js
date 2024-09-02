@@ -3,7 +3,7 @@ const catchAsync = require("../utils/catchAsync");
 
 exports.deleteFingerprintWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Deleting Fingerprint for students:", payload.students);
+    console.log("Deleting Fingerprint for students:", payload);
     const { deviceData } = payload;
 
     // Find students based on matriculation numbers
@@ -33,7 +33,6 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
       courseCode: payload.courseCode,
       deviceData,
     };
-    console.log("Deleting Payload:", deletePayload);
 
     // Emit event to ESP32
     return clients.forEach((client) => {
