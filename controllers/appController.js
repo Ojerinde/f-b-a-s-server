@@ -457,7 +457,8 @@ exports.getCourseReports = catchAsync(async (req, res, next) => {
 exports.getDevicesConnected = catchAsync(async (req, res, next) => {
   console.log("Getting Device Connected ");
 
-  const devicesConnected = await DevicesConnected.find({});
+  const devicesConnected = await DevicesConnected.find();
+  console.log(devicesConnected);
 
   res.status(200).json({
     status: "success",
