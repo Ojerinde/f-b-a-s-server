@@ -53,11 +53,18 @@ wss.on("connection", (ws) => {
         console.log(`Client identified as:`, data);
         ws.clientType = data.clientType.toLowerCase();
         ws.clientType = data.source.toLowerCase();
+        console.log("Hey after lower case");
+        console.log("I got here to hardware if", data.source, data.clientType);
 
         if (data.source === "web_app" && data.clientType) {
         }
 
         if (data.source === "hardware" && data.clientType) {
+          console.log(
+            "I got here to hardware if",
+            data.source,
+            data.clientType
+          );
           const existingDevice = await DevicesConnected.findOne({
             deviceLocation: data.clientType.toLowerCase(),
           });
