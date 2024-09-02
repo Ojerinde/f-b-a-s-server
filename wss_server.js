@@ -60,8 +60,6 @@ function initWebSocketServer() {
         `${data?.event} event with${data?.payload} received from client`
       );
 
-      const clients = wss.clients;
-
       switch (data?.event) {
         case "identify":
           console.log(`Client identified as:`, data);
@@ -82,36 +80,36 @@ function initWebSocketServer() {
           }
           break;
         case "enroll":
-          enrollStudentWithWebsocket(ws, clients, data.payload);
+          enrollStudentWithWebsocket(ws, wss.clients, data.payload);
           break;
         case "attendance":
-          takeAttendanceWithWebsocket(ws, clients, data.payload);
+          takeAttendanceWithWebsocket(ws, wss.clients, data.payload);
           break;
         case "esp32_data":
-          esp32DetailsWithWebsocket(ws, clients, data.payload);
+          esp32DetailsWithWebsocket(ws, wss.clients, data.payload);
           break;
         case "clear_fingerprints":
-          clearFingerprintsWithWebsocket(ws, clients, data.payload);
+          clearFingerprintsWithWebsocket(ws, wss.clients, data.payload);
           break;
         case "delete_fingerprint":
-          deleteFingerprintWithWebsocket(ws, clients, data.payload);
+          deleteFingerprintWithWebsocket(ws, wss.clients, data.payload);
           break;
 
         // Feedback from ESP32 device
         case "enroll_response":
-          getEnrollFeedbackFromEsp32(ws, clients, data.payload);
+          getEnrollFeedbackFromEsp32(ws, wss.clients, data.payload);
           break;
         case "attendance_response":
-          getAttendanceFeedbackFromEsp32(ws, clients, data.payload);
+          getAttendanceFeedbackFromEsp32(ws, wss.clients, data.payload);
           break;
         case "esp32_data_response":
-          esp32DetailsFeedback(ws, clients, data.payload);
+          esp32DetailsFeedback(ws, wss.clients, data.payload);
           break;
         case "empty_fingerprints_response":
-          clearFingerprintsFeedback(ws, clients, data.payload);
+          clearFingerprintsFeedback(ws, wss.clients, data.payload);
           break;
         case "delete_fingerprint_response":
-          deleteFingerprintFeedback(ws, clients, data.payload);
+          deleteFingerprintFeedback(ws, wss.clients, data.payload);
           break;
         default:
           console.log("Unknown event:", data.event);

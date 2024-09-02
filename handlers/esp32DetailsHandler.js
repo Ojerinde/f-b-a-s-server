@@ -2,10 +2,14 @@ const catchAsync = require("../utils/catchAsync");
 
 // Endpoint for fetching Esp32 details with Websocket.
 exports.esp32DetailsWithWebsocket = catchAsync(async (ws, clients, payload) => {
-  console.log("Starting to fetch Esp32 details with websocket", payload);
+  console.log(
+    "Starting to fetch Esp32 details with websocket",
+    payload,
+    clients
+  );
   const { deviceData } = payload;
   return clients.forEach((client) => {
-    if (clients.clientType !== deviceData.deviceLocation) return;
+    // if (clients.clientType !== deviceData.deviceLocation) return;
     client.send(
       JSON.stringify({
         event: "esp32_data_request",
