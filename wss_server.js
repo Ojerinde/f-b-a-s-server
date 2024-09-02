@@ -56,10 +56,9 @@ function initWebSocketServer() {
     // Handle incoming messages
     ws.on("message", async (message) => {
       const data = JSON.parse(message);
-      console.log(`${data?.event} event received from client`);
+      console.log(`${data} event received from client`);
 
       const clients = wss.clients;
-      console.log("Clients", clients.size);
 
       switch (data?.event) {
         case "identify":
@@ -71,11 +70,6 @@ function initWebSocketServer() {
           }
 
           if (data.source === "hardware" && data.clientType) {
-            console.log(
-              "I got here to hardware if",
-              data.source,
-              data.clientType
-            );
             const existingDevice = await DevicesConnected.findOne({
               deviceLocation: data.clientType.toLowerCase(),
             });
@@ -92,7 +86,7 @@ function initWebSocketServer() {
           takeAttendanceWithWebsocket(ws, clients, data.payload);
           break;
         case "esp32_data":
-          esp32DetailsWithWebsocket(ws, clients);
+          esp32DetailsWithWebsocket(ws, clients, data.payload);
           break;
         case "clear_fingerprints":
           clearFingerprintsWithWebsocket(ws, clients, data.payload);
