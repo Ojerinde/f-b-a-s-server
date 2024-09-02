@@ -1,20 +1,24 @@
-const { string } = require("joi");
-const { Lecturer, Course, Student } = require("../models/appModel");
+const { Course, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
 
 // Endpoint for enrolling a student into a course with WebSocket.
 exports.enrollStudentWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Starting enrollment process with WebSocket for", payload);
+    console.log(
+      "Starting enrollment process with WebSocket for",
+      clients.size,
+      payload
+    );
 
-    const { courseCode, name, matricNo } = payload;
+    const { courseCode, name, matricNo, deviceData } = payload;
 
     // Find the course by its course code
     const course = await Course.findOne({ courseCode });
 
     if (!course) {
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -33,6 +37,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
     if (student) {
       if (student.name !== name) {
         return clients.forEach((client) => {
+          if (clients.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -47,6 +52,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (student.courses.includes(course._id)) {
         return clients.forEach((client) => {
+          if (clients.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -69,6 +75,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
       await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -80,11 +87,16 @@ exports.enrollStudentWithWebsocket = catchAsync(
         );
       });
     } else {
+      // Fetch all existing idOnSensor values
+      const existingIds = await Student.find({
+        idOnSensor: { $ne: null },
+      }).select("idOnSensor");
+      const idSet = new Set(existingIds.map((student) => student.idOnSensor));
+
       // Find an available proposedId between 1 and 299
       let proposedId;
       for (let i = 1; i <= 299; i++) {
-        const idExists = await Student.findOne({ idOnSensor: i });
-        if (!idExists) {
+        if (!idSet.has(i)) {
           proposedId = i;
           break;
         }
@@ -92,6 +104,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (!proposedId) {
         return clients.forEach((client) => {
+          if (clients.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -149,6 +162,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
               // Send response to the frontend with success message
               clients.forEach((client) => {
+                if (clients.clientType !== deviceData.email) return;
                 client.send(
                   JSON.stringify({
                     event: "enroll_feedback",
@@ -172,6 +186,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       // Emit an 'enroll' event to ESP32 device
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.deviceLocation) return;
         client.send(
           JSON.stringify({
             event: "enroll_request",
@@ -179,6 +194,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
               courseCode,
               matricNo,
               proposedId: `${proposedId}`,
+              deviceData,
             },
           })
         );
@@ -192,7 +208,8 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Enrollment feedback received from ESP32 device:", payload);
 
-    const { courseCode, matricNo, idOnSensor } = payload?.data || {};
+    const { courseCode, matricNo, idOnSensor, deviceData } =
+      payload?.data || {};
 
     // Regular expressions for validation
     const courseCodeRegex = /^[A-Z]{3}\s\d{3}$/; // Matches "ABC 000" format
@@ -203,6 +220,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     if (!courseCode || !courseCodeRegex.test(courseCode)) {
       // If courseCode is missing or not in expected format, emit an error
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -218,6 +236,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     // Validate matricNo format
     if (!matricNo || !matricNoRegex.test(matricNo)) {
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -229,21 +248,6 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
         );
       });
     }
-
-    // Validate idOnSensor format
-    // if (!idOnSensor || !idOnSensorRegex.test(idOnSensor)) {
-    //   return clients.forEach((client) => {
-    //     client.send(
-    //       JSON.stringify({
-    //         event: "enroll_feedback",
-    //         payload: {
-    //           message: "Invalid idOnSensor format received from device",
-    //           error: true,
-    //         },
-    //       })
-    //     );
-    //   });
-    // }
 
     // Find the student by matricNo
     let student = await Student.findOne({ matricNo });
@@ -259,6 +263,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
 
       // Send response to the frontend with error message
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -274,6 +279,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     if (payload?.data?.message === "Place finger") {
       // Send response to the frontend with error message
       return clients.forEach((client) => {
+        if (clients.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -298,6 +304,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
 
     // Send response to the frontend with success message
     return clients.forEach((client) => {
+      if (clients.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "enroll_feedback",

@@ -24,12 +24,11 @@ const {
   deleteFingerprintFeedback,
   deleteFingerprintWithWebsocket,
 } = require("./handlers/deleteFingerprintHandler");
+const { DevicesConnected } = require("./models/appModel");
 
 const PORT = 5000;
 
 const httpServer = createServer(app);
-
-const clients = new Set();
 
 // Initialize WebSocket server
 const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
@@ -37,14 +36,37 @@ const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
 wss.on("connection", (ws) => {
   console.log("A client is connected");
 
-  clients.add(ws);
+  // Temporary property to store client type
+  ws.clientType = null;
+  ws.source = null;
 
   // Handle incoming messages
-  ws.on("message", (message) => {
+  ws.on("message", async (message) => {
     const data = JSON.parse(message);
     console.log(`${data?.event} event received from client`);
 
+    const clients = wss.clients;
+    console.log("Clients", clients.size);
+
     switch (data?.event) {
+      case "identify":
+        console.log(`Client identified as:`, data);
+        ws.clientType = data.clientType.toLowerCase();
+        ws.clientType = data.source.toLowerCase();
+
+        if (data.source === "web_app" && data.clientType) {
+        }
+
+        if (data.source === "hardware" && data.clientType) {
+          const existingDevice = await DevicesConnected.findOne({
+            deviceLocation: data.clientType.toLowerCase(),
+          });
+          if (existingDevice) return;
+          await DevicesConnected.create({
+            deviceLocation: data.clientType.toLowerCase(),
+          });
+        }
+        break;
       case "enroll":
         enrollStudentWithWebsocket(ws, clients, data.payload);
         break;
