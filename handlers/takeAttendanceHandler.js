@@ -64,7 +64,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   // Send feedback to the lecturer that the attendance has been scheduled successfully
   clients.forEach((client) => {
-    if (clients.clientType !== deviceData.email) return;
+    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "attendance_feedback",
@@ -90,7 +90,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
     if (enrolledStudentsId.length === 0) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -104,7 +104,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
     }
 
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.deviceLocation) return;
+      if (client.clientType !== deviceData.deviceLocation) return;
       client.send(
         JSON.stringify({
           event: "attendance_request",
