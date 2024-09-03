@@ -21,7 +21,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   if (!course) {
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.email) return;
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -49,7 +49,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   if (existingAttendance) {
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.email) return;
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -128,7 +128,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (payload.error) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -143,7 +143,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (payload?.data.message === "Downloaded successfully") {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -163,7 +163,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (!course) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -188,7 +188,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (existingAttendance) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -220,7 +220,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (validStudentRecords.length === 0) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -247,7 +247,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     await course.save();
 
     clients.forEach((client) => {
-      if (clients.clientType !== deviceData.email) return;
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",

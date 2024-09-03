@@ -27,7 +27,7 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     // Send response to Web App
     if (payload.clearPhrase !== levelAdviser.clearPhrase) {
       return clients.forEach((client) => {
-        if (clients.clientType !== deviceData.email) return;
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "clear_fingerprints_feedback",
@@ -50,7 +50,7 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     };
 
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.deviceLocation) return;
+      if (client.clientType !== deviceData.deviceLocation) return;
       client.send(JSON.stringify(response));
     });
   }
@@ -64,7 +64,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   const { deviceData } = payload.data;
   if (payload.error) {
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.email) return;
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "clear_fingerprints_feedback",
@@ -144,7 +144,7 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
 
   // Send success feedback to clients
   return clients.forEach((client) => {
-    if (clients.clientType !== deviceData.email) return;
+    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "clear_fingerprints_feedback",
