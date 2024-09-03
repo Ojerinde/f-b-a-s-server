@@ -116,8 +116,11 @@ function initWebSocketServer() {
       }
     });
 
-    ws.on("close", () => {
+    ws.on("close", async () => {
       console.log("A client disconnected");
+      await DevicesConnected.deleteOne({
+        deviceLocation: ws.clientType.toLowerCase(),
+      });
       wss.clients.delete(ws);
     });
   });
