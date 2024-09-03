@@ -117,10 +117,13 @@ function initWebSocketServer() {
     });
 
     ws.on("close", async () => {
-      console.log("A client disconnected");
-      await DevicesConnected.deleteOne({
-        deviceLocation: ws.clientType.toLowerCase(),
-      });
+      console.log(`${ws?.clientType} client is disconnected`);
+      if (ws.source === "hardware") {
+        console.log("Device disconnected");
+        await DevicesConnected.deleteOne({
+          deviceLocation: ws.clientType.toLowerCase(),
+        });
+      }
       wss.clients.delete(ws);
     });
   });
