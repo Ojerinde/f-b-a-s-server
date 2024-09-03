@@ -57,7 +57,7 @@ function initWebSocketServer() {
     ws.on("message", async (message) => {
       const data = JSON.parse(message);
       console.log(
-        `${data?.event} event with${data?.payload} received from client`
+        `${data?.event} event with ${data?.payload} received from client`
       );
 
       switch (data?.event) {
@@ -117,8 +117,9 @@ function initWebSocketServer() {
     });
 
     ws.on("close", async () => {
+      console.log("A client is disconnected");
       console.log(`${ws?.clientType} client is disconnected`);
-      if (ws.source === "hardware") {
+      if (ws?.source === "hardware") {
         console.log("Device disconnected");
         await DevicesConnected.deleteOne({
           deviceLocation: ws.clientType.toLowerCase(),
