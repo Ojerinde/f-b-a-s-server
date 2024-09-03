@@ -53,7 +53,7 @@ wss.on("connection", (ws) => {
       case "identify":
         console.log(`Client identified as:`, data);
         ws.clientType = data.clientType.toLowerCase();
-        ws.clientType = data.source.toLowerCase();
+        ws.source = data.source.toLowerCase();
 
         if (data.source === "web_app" && data.clientType) {
         }
