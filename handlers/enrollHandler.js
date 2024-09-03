@@ -136,11 +136,6 @@ exports.enrollStudentWithWebsocket = catchAsync(
       // This will be only be triggered if the enrolment was not successful and which means idOnsensor was not set
       setTimeout(async () => {
         try {
-          console.log(
-            "Rolling back enrollment process for student with Matric No.",
-            student.matricNo,
-            "due to timeout"
-          );
           // refetch the student from the database
           const createdStudent = await Student.findOne({
             matricNo: student.matricNo,

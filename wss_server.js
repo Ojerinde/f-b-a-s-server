@@ -118,7 +118,7 @@ function initWebSocketServer() {
 
     ws.on("close", () => {
       console.log("A client disconnected");
-      clients.delete(ws);
+      wss.clients.delete(ws);
     });
   });
 
