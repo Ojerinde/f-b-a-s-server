@@ -5,7 +5,7 @@ exports.esp32DetailsWithWebsocket = catchAsync(async (ws, clients, payload) => {
   console.log("Starting to fetch Esp32 details with websocket", payload);
   const { deviceData } = payload;
   return clients.forEach((client) => {
-    if (clients.clientType !== deviceData.deviceLocation) return;
+    if (client.clientType !== deviceData.deviceLocation) return;
     client.send(
       JSON.stringify({
         event: "esp32_data_request",
@@ -25,7 +25,7 @@ exports.esp32DetailsFeedback = catchAsync(async (ws, clients, payload) => {
 
   if (payload.error) {
     return clients.forEach((client) => {
-      if (clients.clientType !== deviceData.email) return;
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "esp32_data_feedback",
@@ -38,7 +38,7 @@ exports.esp32DetailsFeedback = catchAsync(async (ws, clients, payload) => {
   }
 
   return clients.forEach((client) => {
-    if (clients.clientType !== deviceData.email) return;
+    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "esp32_data_feedback",
