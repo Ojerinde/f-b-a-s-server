@@ -5,11 +5,7 @@ const Email = require("../utils/email");
 // Endpoint for enrolling a student into a course with WebSocket.
 exports.enrollStudentWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
-    console.log(
-      "Starting enrollment process with WebSocket for",
-
-      payload
-    );
+    console.log("Starting enrollment process with WebSocket for", payload);
 
     const { courseCode, name, matricNo, deviceData } = payload;
 

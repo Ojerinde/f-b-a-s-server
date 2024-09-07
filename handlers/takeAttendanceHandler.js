@@ -40,11 +40,11 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
   const scheduleDate = convertToUTC(startDate);
 
   // Send a feedback immediately to the lecturer if there is an existing attendance for the course within the last 5 minutes
-  const TwentyFourHrs = new Date(startDate.getTime() - 5 * 60 * 1000);
+  const TwelveHrs = new Date(startDate.getTime() - 5 * 60 * 1000);
 
   const existingAttendance = await Attendance.findOne({
     course: course._id,
-    date: { $gte: TwentyFourHrs },
+    date: { $gte: TwelveHrs },
   });
 
   if (existingAttendance) {
