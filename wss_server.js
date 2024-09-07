@@ -49,6 +49,7 @@ const checkInactiveDevices = async () => {
 
   for (const [deviceLocation, lastPingTime] of activeDevices) {
     if (now - lastPingTime > 15000) {
+      if (!deviceLocation) continue;
       console.log(
         `Device at ${deviceLocation} is inactive for more than 15 seconds. Removing...`
       );
@@ -135,9 +136,8 @@ function initWebSocketServer() {
     });
 
     ws.on("ping", (buffer) => {
-      console.log("Received ping from hardware", buffer);
-
       const locationUtf8 = buffer.toString("utf8");
+      console.log("Received ping from hardware", buffer, locationUtf8);
 
       // Update the last ping time for the device
       activeDevices.set(locationUtf8.toLowerCase(), Date.now());
