@@ -137,7 +137,12 @@ function initWebSocketServer() {
 
     ws.on("ping", (buffer) => {
       const locationUtf8 = buffer.toString("utf8");
-      console.log("Received ping from hardware", buffer, locationUtf8);
+      console.log(
+        "Received ping from hardware",
+        buffer,
+        "location",
+        locationUtf8
+      );
 
       // Update the last ping time for the device
       activeDevices.set(locationUtf8.toLowerCase(), Date.now());
