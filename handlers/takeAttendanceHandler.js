@@ -103,6 +103,17 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
       });
     }
 
+    console.log("Before Emitting Attendance Event to ESP32", {
+      event: "attendance_request",
+      payload: {
+        courseCode: course.courseCode,
+        startTime: startDate.toISOString(),
+        stopTime: endDate.toISOString(),
+        enrolledStudentsId: enrolledStudentsId,
+        deviceData,
+      },
+    });
+
     return clients.forEach((client) => {
       if (client.clientType !== deviceData.deviceLocation) return;
       client.send(
