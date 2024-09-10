@@ -141,51 +141,47 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       // This will be only be triggered if the enrolment was not successful and which means idOnsensor was not set
       setTimeout(async () => {
-        try {
+        console.log(
+          "Rolling back enrollment process for student with Matric No.",
+          student.matricNo,
+          "due to timeout"
+        );
+        // refetch the student from the database
+        const createdStudent = await Student.findOne({
+          matricNo: student.matricNo,
+        });
+
+        if (!createdStudent.idOnSensor) {
           console.log(
-            "Rolling back enrollment process for student with Matric No.",
-            student.matricNo,
-            "due to timeout"
+            "Rolling back actions for student with Matric No.",
+            createdStudent.matricNo
           );
-          // refetch the student from the database
-          const createdStudent = await Student.findOne({
-            matricNo: student.matricNo,
-          });
 
-          if (!createdStudent.idOnSensor) {
-            console.log(
-              "Rolling back actions for student with Matric No.",
-              createdStudent.matricNo
+          // Rollback actions: Delete the created student and remove from course
+          if (createdStudent) {
+            await Course.updateMany(
+              { students: createdStudent._id },
+              { $pull: { students: createdStudent._id } }
             );
+            await Student.findByIdAndDelete(createdStudent._id);
 
-            // Rollback actions: Delete the created student and remove from course
-            if (createdStudent) {
-              await Course.updateMany(
-                { students: createdStudent._id },
-                { $pull: { students: createdStudent._id } }
+            // Send response to the frontend with success message
+            clients.forEach((client) => {
+              client.send(
+                JSON.stringify({
+                  event: "enroll_feedback",
+                  payload: {
+                    message: `Enrollment for student with Matric No. ${createdStudent.matricNo} failed`,
+                    error: true,
+                  },
+                })
               );
-              await Student.findByIdAndDelete(createdStudent._id);
-
-              // Send response to the frontend with success message
-              clients.forEach((client) => {
-                client.send(
-                  JSON.stringify({
-                    event: "enroll_feedback",
-                    payload: {
-                      message: `Enrollment for student with Matric No. ${createdStudent.matricNo} failed`,
-                      error: true,
-                    },
-                  })
-                );
-              });
-            } else {
-              console.error("Student not found in the database for rollback.");
-            }
+            });
           } else {
-            console.log("Student enrollment succeeded or already handled.");
+            console.error("Student not found in the database for rollback.");
           }
-        } catch (error) {
-          console.error("Error during enrollment rollback:", error);
+        } else {
+          console.log("Student enrollment succeeded or already handled.");
         }
       }, 60000);
 
@@ -221,17 +217,43 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     // Validate courseCode format
     if (!courseCode || !courseCodeRegex.test(courseCode)) {
       // If courseCode is missing or not in expected format, emit an error
-      return clients.forEach((client) => {
-        client.send(
-          JSON.stringify({
-            event: "enroll_feedback",
-            payload: {
-              message: "Invalid courseCode format received from device",
-              error: true,
-            },
-          })
-        );
+      // refetch the student from the database
+      const createdStudent = await Student.findOne({
+        matricNo: student.matricNo,
       });
+
+      if (!createdStudent.idOnSensor) {
+        console.log(
+          "Rolling back actions for student with Matric No.",
+          createdStudent.matricNo
+        );
+
+        // Rollback actions: Delete the created student and remove from course
+        if (createdStudent) {
+          await Course.updateMany(
+            { students: createdStudent._id },
+            { $pull: { students: createdStudent._id } }
+          );
+          await Student.findByIdAndDelete(createdStudent._id);
+
+          // Send response to the frontend with success message
+          return clients.forEach((client) => {
+            client.send(
+              JSON.stringify({
+                event: "enroll_feedback",
+                payload: {
+                  message: `Enrollment failed for Matric No. ${createdStudent.matricNo} due to invalid courseCode format. Please restart the device and try again.`,
+                  error: true,
+                },
+              })
+            );
+          });
+        } else {
+          console.error("Student not found in the database for rollback.");
+        }
+      } else {
+        console.log("Student enrollment succeeded or already handled.");
+      }
     }
 
     // Validate matricNo format
