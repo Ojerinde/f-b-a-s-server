@@ -80,7 +80,6 @@ exports.enrollStudentWithWebsocket = catchAsync(
         );
       });
     } else {
-      // Find an available proposedId between 1 and 299
       // Fetch all existing idOnSensor values
       const existingIds = await Student.find({
         idOnSensor: { $ne: null },
