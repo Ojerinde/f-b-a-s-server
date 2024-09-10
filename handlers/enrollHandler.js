@@ -95,7 +95,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
           break;
         }
       }
-      console.log("Proposed ID 1:", existingIds, idSet, proposedId1);
+      console.log("Proposed ID 1:", proposedId1);
 
       // Method 2:
       // Find an available proposedId between 1 and 299
