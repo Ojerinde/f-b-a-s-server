@@ -48,6 +48,7 @@ const checkInactiveDevices = async () => {
   const now = Date.now();
 
   for (const [deviceLocation, lastPingTime] of activeDevices) {
+    cl;
     if (now - lastPingTime > 15000) {
       if (!deviceLocation) continue;
       console.log(
@@ -154,7 +155,7 @@ function initWebSocketServer() {
   });
 
   // Periodically check for inactive devices
-  setInterval(checkInactiveDevices, 5000);
+  // setInterval(checkInactiveDevices, 5000);
 
   // Start the cleanup process after a timeout period
   setTimeout(async () => {
