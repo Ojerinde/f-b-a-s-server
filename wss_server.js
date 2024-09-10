@@ -43,6 +43,10 @@ const httpsServer = createServer(options, app);
 const clients = new Set();
 let wss;
 
+function processBinaryData(message, ws, clients) {
+  console.log(`Processing binary data of length ${message.length}`);
+}
+
 // Initialize WebSocket server
 function initWebSocketServer() {
   wss = new WebSocket.Server({ server: httpsServer, path: "/ws" });
@@ -52,46 +56,58 @@ function initWebSocketServer() {
 
     clients.add(ws);
 
-    // Handle incoming messages
-    ws.on("message", (message) => {
-      const data = JSON.parse(message);
-      console.log(`${data?.event} event received from client`);
+    // Handle incoming messages (both text and binary)
+    ws.on("message", (message, isBinary) => {
+      if (isBinary) {
+        // Handle binary data
+        console.log("Received binary data from client");
+        // Process the binary data (message is a Buffer)
+        processBinaryData(message, ws, clients);
+      } else {
+        // Handle text data (assume it's JSON)
+        try {
+          const data = JSON.parse(message.toString());
+          console.log(`${data?.event} event received from client`);
 
-      switch (data?.event) {
-        case "enroll":
-          enrollStudentWithWebsocket(ws, clients, data.payload);
-          break;
-        case "attendance":
-          takeAttendanceWithWebsocket(ws, clients, data.payload);
-          break;
-        case "esp32_data":
-          esp32DetailsWithWebsocket(ws, clients);
-          break;
-        case "clear_fingerprints":
-          clearFingerprintsWithWebsocket(ws, clients, data.payload);
-          break;
-        case "delete_fingerprint":
-          deleteFingerprintWithWebsocket(ws, clients, data.payload);
-          break;
+          switch (data?.event) {
+            case "enroll":
+              enrollStudentWithWebsocket(ws, clients, data.payload);
+              break;
+            case "attendance":
+              takeAttendanceWithWebsocket(ws, clients, data.payload);
+              break;
+            case "esp32_data":
+              esp32DetailsWithWebsocket(ws, clients);
+              break;
+            case "clear_fingerprints":
+              clearFingerprintsWithWebsocket(ws, clients, data.payload);
+              break;
+            case "delete_fingerprint":
+              deleteFingerprintWithWebsocket(ws, clients, data.payload);
+              break;
 
-        // Feedback from ESP32 device
-        case "enroll_response":
-          getEnrollFeedbackFromEsp32(ws, clients, data.payload);
-          break;
-        case "attendance_response":
-          getAttendanceFeedbackFromEsp32(ws, clients, data.payload);
-          break;
-        case "esp32_data_response":
-          esp32DetailsFeedback(ws, clients, data.payload);
-          break;
-        case "empty_fingerprints_response":
-          clearFingerprintsFeedback(ws, clients, data.payload);
-          break;
-        case "delete_fingerprint_response":
-          deleteFingerprintFeedback(ws, clients, data.payload);
-          break;
-        default:
-          console.log("Unknown event:", data.event);
+            // Feedback from ESP32 device
+            case "enroll_response":
+              getEnrollFeedbackFromEsp32(ws, clients, data.payload);
+              break;
+            case "attendance_response":
+              getAttendanceFeedbackFromEsp32(ws, clients, data.payload);
+              break;
+            case "esp32_data_response":
+              esp32DetailsFeedback(ws, clients, data.payload);
+              break;
+            case "empty_fingerprints_response":
+              clearFingerprintsFeedback(ws, clients, data.payload);
+              break;
+            case "delete_fingerprint_response":
+              deleteFingerprintFeedback(ws, clients, data.payload);
+              break;
+            default:
+              console.log("Unknown event:", data.event);
+          }
+        } catch (error) {
+          console.error("Failed to parse JSON message:", error);
+        }
       }
     });
 
