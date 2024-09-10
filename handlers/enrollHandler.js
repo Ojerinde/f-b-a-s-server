@@ -80,6 +80,24 @@ exports.enrollStudentWithWebsocket = catchAsync(
         );
       });
     } else {
+      // Method 1:
+      // Fetch all existing idOnSensor values
+      const existingIds = await Student.find({
+        idOnSensor: { $ne: null },
+      }).select("idOnSensor");
+      const idSet = new Set(existingIds.map((student) => student.idOnSensor));
+
+      // Find an available proposedId between 1 and 299
+      let proposedId1;
+      for (let i = 1; i <= 299; i++) {
+        if (!idSet.has(i)) {
+          proposedId1 = i;
+          break;
+        }
+      }
+      console.log("Proposed ID 1:", existingIds, idSet, proposedId1);
+
+      // Method 2:
       // Find an available proposedId between 1 and 299
       let proposedId;
       for (let i = 1; i <= 299; i++) {
@@ -89,6 +107,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
           break;
         }
       }
+      console.log("Proposed ID 2:", proposedId);
 
       if (!proposedId) {
         return clients.forEach((client) => {
