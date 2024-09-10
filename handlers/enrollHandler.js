@@ -88,26 +88,26 @@ exports.enrollStudentWithWebsocket = catchAsync(
       const idSet = new Set(existingIds.map((student) => student.idOnSensor));
 
       // Find an available proposedId between 1 and 299
-      let proposedId1;
+      let proposedId;
       for (let i = 1; i <= 299; i++) {
         if (!idSet.has(i)) {
-          proposedId1 = i;
+          proposedId = i;
           break;
         }
       }
       console.log("Proposed ID 1:", proposedId1);
 
-      // Method 2:
+      // Method 2: Slow method
       // Find an available proposedId between 1 and 299
-      let proposedId;
-      for (let i = 1; i <= 299; i++) {
-        const idExists = await Student.findOne({ idOnSensor: i });
-        if (!idExists) {
-          proposedId = i;
-          break;
-        }
-      }
-      console.log("Proposed ID 2:", proposedId);
+      // let proposedId;
+      // for (let i = 1; i <= 299; i++) {
+      //   const idExists = await Student.findOne({ idOnSensor: i });
+      //   if (!idExists) {
+      //     proposedId = i;
+      //     break;
+      //   }
+      // }
+      // console.log("Proposed ID 2:", proposedId);
 
       if (!proposedId) {
         return clients.forEach((client) => {
