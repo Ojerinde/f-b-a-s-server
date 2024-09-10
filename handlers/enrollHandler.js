@@ -81,10 +81,16 @@ exports.enrollStudentWithWebsocket = catchAsync(
       });
     } else {
       // Find an available proposedId between 1 and 299
+      // Fetch all existing idOnSensor values
+      const existingIds = await Student.find({
+        idOnSensor: { $ne: null },
+      }).select("idOnSensor");
+      const idSet = new Set(existingIds.map((student) => student.idOnSensor));
+
+      // Find an available proposedId between 1 and 299
       let proposedId;
       for (let i = 1; i <= 299; i++) {
-        const idExists = await Student.findOne({ idOnSensor: i });
-        if (!idExists) {
+        if (!idSet.has(i)) {
           proposedId = i;
           break;
         }
