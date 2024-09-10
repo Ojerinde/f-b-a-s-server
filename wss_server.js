@@ -67,7 +67,7 @@ function initWebSocketServer() {
   wss = new WebSocket.Server({ server: httpsServer, path: "/ws" });
 
   wss.on("connection", (ws) => {
-    console.log("A client is connected");
+    console.log("A client is connected to the server");
 
     // Temporary property to store client type
     ws.clientType = null;
