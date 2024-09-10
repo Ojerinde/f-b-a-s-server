@@ -242,7 +242,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
               JSON.stringify({
                 event: "enroll_feedback",
                 payload: {
-                  message: `Enrollment failed for Matric No. ${createdStudent.matricNo} due to invalid courseCode format. Please restart the device and try again.`,
+                  message: `Enrollment failed for Matric No. ${createdStudent.matricNo} due to invalid courseCode format received from device. Please restart the device and try again.`,
                   error: true,
                 },
               })
