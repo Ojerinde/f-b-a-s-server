@@ -1,7 +1,7 @@
 const { createServer } = require("https");
 const WebSocket = require("ws");
 const fs = require("fs");
-const { Course, Student } = require("./models/appModel");
+const { Course, Student, DevicesConnected } = require("./models/appModel");
 require("dotenv").config();
 
 const app = require("./app");
@@ -40,12 +40,27 @@ const options = {
 
 const httpsServer = createServer(options, app);
 
-const clients = new Set();
 let wss;
 
-function processBinaryData(message, ws, clients) {
-  console.log(`Processing binary data of length ${message.length}`);
-}
+const activeDevices = new Map();
+// Function to check inactive devices
+const checkInactiveDevices = async () => {
+  const now = Date.now();
+
+  for (const [deviceLocation, lastPingTime] of activeDevices) {
+    cl;
+    if (now - lastPingTime > 15000) {
+      if (!deviceLocation) continue;
+      console.log(
+        `Device at ${deviceLocation} is inactive for more than 15 seconds. Removing...`
+      );
+
+      await DevicesConnected.deleteOne({ deviceLocation });
+
+      activeDevices.delete(deviceLocation);
+    }
+  }
+};
 
 // Initialize WebSocket server
 function initWebSocketServer() {
@@ -54,68 +69,93 @@ function initWebSocketServer() {
   wss.on("connection", (ws) => {
     console.log("A client device is connected to the server");
 
-    clients.add(ws);
+    // Temporary property to store client type
+    ws.clientType = null;
+    ws.source = null;
 
-    // Handle incoming messages (both text and binary)
-    ws.on("message", (message, isBinary) => {
-      if (isBinary) {
-        // Handle binary data
-        console.log("Received binary data from client");
-        // Process the binary data (message is a Buffer)
-        processBinaryData(message, ws, clients);
-      } else {
-        // Handle text data (assume it's JSON)
-        try {
-          const data = JSON.parse(message.toString());
-          console.log(`${data?.event} event received from client`);
+    // Handle incoming messages
+    ws.on("message", async (message) => {
+      const data = JSON.parse(message);
+      console.log(
+        `${data?.event} event with ${data?.payload} received from client`
+      );
 
-          switch (data?.event) {
-            case "enroll":
-              enrollStudentWithWebsocket(ws, clients, data.payload);
-              break;
-            case "attendance":
-              takeAttendanceWithWebsocket(ws, clients, data.payload);
-              break;
-            case "esp32_data":
-              esp32DetailsWithWebsocket(ws, clients);
-              break;
-            case "clear_fingerprints":
-              clearFingerprintsWithWebsocket(ws, clients, data.payload);
-              break;
-            case "delete_fingerprint":
-              deleteFingerprintWithWebsocket(ws, clients, data.payload);
-              break;
+      switch (data?.event) {
+        case "identify":
+          console.log(`Client identified as:`, data);
+          ws.clientType = data.clientType.toLowerCase();
+          ws.source = data.source.toLowerCase();
 
-            // Feedback from ESP32 device
-            case "enroll_response":
-              getEnrollFeedbackFromEsp32(ws, clients, data.payload);
-              break;
-            case "attendance_response":
-              getAttendanceFeedbackFromEsp32(ws, clients, data.payload);
-              break;
-            case "esp32_data_response":
-              esp32DetailsFeedback(ws, clients, data.payload);
-              break;
-            case "empty_fingerprints_response":
-              clearFingerprintsFeedback(ws, clients, data.payload);
-              break;
-            case "delete_fingerprint_response":
-              deleteFingerprintFeedback(ws, clients, data.payload);
-              break;
-            default:
-              console.log("Unknown event:", data.event);
+          if (data.source === "web_app" && data.clientType) {
           }
-        } catch (error) {
-          console.error("Failed to parse JSON message:", error);
-        }
+
+          if (data.source === "hardware" && data.clientType) {
+            const existingDevice = await DevicesConnected.findOne({
+              deviceLocation: data.clientType.toLowerCase(),
+            });
+            if (existingDevice) return;
+            await DevicesConnected.create({
+              deviceLocation: data.clientType.toLowerCase(),
+            });
+          }
+          break;
+        case "enroll":
+          enrollStudentWithWebsocket(ws, wss.clients, data.payload);
+          break;
+        case "attendance":
+          takeAttendanceWithWebsocket(ws, wss.clients, data.payload);
+          break;
+        case "esp32_data":
+          esp32DetailsWithWebsocket(ws, wss.clients, data.payload);
+          break;
+        case "clear_fingerprints":
+          clearFingerprintsWithWebsocket(ws, wss.clients, data.payload);
+          break;
+        case "delete_fingerprint":
+          deleteFingerprintWithWebsocket(ws, wss.clients, data.payload);
+          break;
+
+        // Feedback from ESP32 device
+        case "enroll_response":
+          getEnrollFeedbackFromEsp32(ws, wss.clients, data.payload);
+          break;
+        case "attendance_response":
+          getAttendanceFeedbackFromEsp32(ws, wss.clients, data.payload);
+          break;
+        case "esp32_data_response":
+          esp32DetailsFeedback(ws, wss.clients, data.payload);
+          break;
+        case "empty_fingerprints_response":
+          clearFingerprintsFeedback(ws, wss.clients, data.payload);
+          break;
+        case "delete_fingerprint_response":
+          deleteFingerprintFeedback(ws, wss.clients, data.payload);
+          break;
+        default:
+          console.log("Unknown event:", data.event);
       }
     });
 
-    ws.on("close", () => {
-      console.log("A client disconnected");
-      clients.delete(ws);
+    ws.on("ping", (buffer) => {
+      const locationUtf8 = buffer.toString("utf8");
+      console.log(
+        "Received ping from hardware",
+        buffer,
+        "location",
+        locationUtf8
+      );
+
+      // Update the last ping time for the device
+      activeDevices.set(locationUtf8.toLowerCase(), Date.now());
+    });
+
+    ws.on("close", async () => {
+      console.log(`${ws?.clientType} client is disconnected`);
     });
   });
+
+  // Periodically check for inactive devices
+  // setInterval(checkInactiveDevices, 5000);
 
   // Start the cleanup process after a timeout period
   setTimeout(async () => {

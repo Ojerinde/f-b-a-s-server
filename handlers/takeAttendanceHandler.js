@@ -11,16 +11,17 @@ const convertToUTC = (lagosTime) => {
   return utcTime;
 };
 
-exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
-  console.log("Started attendance marking process with Websocket for", data);
+exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
+  console.log("Started attendance marking process with Websocket for", payload);
 
-  const { courseCode, startTime, endTime } = data;
+  const { courseCode, startTime, endTime, deviceData } = payload;
 
   // Find the course by its course code
   const course = await Course.findOne({ courseCode }).populate("students");
 
   if (!course) {
     return clients.forEach((client) => {
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -39,15 +40,16 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
   const scheduleDate = convertToUTC(startDate);
 
   // Send a feedback immediately to the lecturer if there is an existing attendance for the course within the last 5 minutes
-  const TwentyFourHrs = new Date(startDate.getTime() - 5 * 60 * 1000);
+  const TwelveHrs = new Date(startDate.getTime() - 5 * 60 * 1000);
 
   const existingAttendance = await Attendance.findOne({
     course: course._id,
-    date: { $gte: TwentyFourHrs },
+    date: { $gte: TwelveHrs },
   });
 
   if (existingAttendance) {
     return clients.forEach((client) => {
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -62,6 +64,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
 
   // Send feedback to the lecturer that the attendance has been scheduled successfully
   clients.forEach((client) => {
+    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "attendance_feedback",
@@ -87,6 +90,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
 
     if (enrolledStudentsId.length === 0) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -99,7 +103,19 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
       });
     }
 
-    clients.forEach((client) => {
+    console.log("Before Emitting Attendance Event to ESP32", {
+      event: "attendance_request",
+      payload: {
+        courseCode: course.courseCode,
+        startTime: startDate.toISOString(),
+        stopTime: endDate.toISOString(),
+        enrolledStudentsId: enrolledStudentsId,
+        deviceData,
+      },
+    });
+
+    return clients.forEach((client) => {
+      if (client.clientType !== deviceData.deviceLocation) return;
       client.send(
         JSON.stringify({
           event: "attendance_request",
@@ -108,6 +124,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
             startTime: startDate.toISOString(),
             stopTime: endDate.toISOString(),
             enrolledStudentsId: enrolledStudentsId,
+            deviceData,
           },
         })
       );
@@ -118,9 +135,11 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, data) => {
 exports.getAttendanceFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Attendance response received from ESP32", payload);
+    const { deviceData } = payload.data;
 
     if (payload.error) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -135,6 +154,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (payload?.data.message === "Downloaded successfully") {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -154,6 +174,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (!course) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -178,6 +199,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (existingAttendance) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -209,6 +231,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (validStudentRecords.length === 0) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -235,6 +258,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     await course.save();
 
     clients.forEach((client) => {
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -247,6 +271,9 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     });
 
     // Send notification to students who missed three consecutive classes
-    return checkAttendanceAndNotify(payload.data.courseCode, validStudentRecords);
+    return checkAttendanceAndNotify(
+      payload.data.courseCode,
+      validStudentRecords
+    );
   }
 );

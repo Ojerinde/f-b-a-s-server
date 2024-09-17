@@ -1,5 +1,4 @@
-const { string } = require("joi");
-const { Lecturer, Course, Student } = require("../models/appModel");
+const { Course, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
 
@@ -8,13 +7,14 @@ exports.enrollStudentWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log("Starting enrollment process with WebSocket for", payload);
 
-    const { courseCode, name, matricNo } = payload;
+    const { courseCode, name, matricNo, deviceData } = payload;
 
     // Find the course by its course code
     const course = await Course.findOne({ courseCode });
 
     if (!course) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -33,6 +33,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
     if (student) {
       if (student.name !== name) {
         return clients.forEach((client) => {
+          if (client.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -47,6 +48,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (student.courses.includes(course._id)) {
         return clients.forEach((client) => {
+          if (client.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -69,6 +71,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
       await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -80,7 +83,6 @@ exports.enrollStudentWithWebsocket = catchAsync(
         );
       });
     } else {
-      // Method 1:
       // Fetch all existing idOnSensor values
       const existingIds = await Student.find({
         idOnSensor: { $ne: null },
@@ -111,6 +113,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (!proposedId) {
         return clients.forEach((client) => {
+          if (client.clientType !== deviceData.email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -141,52 +144,58 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       // This will be only be triggered if the enrolment was not successful and which means idOnsensor was not set
       setTimeout(async () => {
-        console.log(
-          "Rolling back enrollment process for student with Matric No.",
-          student.matricNo,
-          "due to timeout"
-        );
-        // refetch the student from the database
-        const createdStudent = await Student.findOne({
-          matricNo: student.matricNo,
-        });
-
-        if (!createdStudent.idOnSensor) {
+        try {
           console.log(
-            "Rolling back actions for student with Matric No.",
-            createdStudent.matricNo
+            "Rolling back enrollment process for student with Matric No.",
+            student.matricNo,
+            "due to timeout"
           );
+          // refetch the student from the database
+          const createdStudent = await Student.findOne({
+            matricNo: student.matricNo,
+          });
 
-          // Rollback actions: Delete the created student and remove from course
-          if (createdStudent) {
-            await Course.updateMany(
-              { students: createdStudent._id },
-              { $pull: { students: createdStudent._id } }
+          if (!createdStudent.idOnSensor) {
+            console.log(
+              "Rolling back actions for student with Matric No.",
+              createdStudent.matricNo
             );
-            await Student.findByIdAndDelete(createdStudent._id);
 
-            // Send response to the frontend with success message
-            clients.forEach((client) => {
-              client.send(
-                JSON.stringify({
-                  event: "enroll_feedback",
-                  payload: {
-                    message: `Enrollment for student with Matric No. ${createdStudent.matricNo} failed`,
-                    error: true,
-                  },
-                })
+            // Rollback actions: Delete the created student and remove from course
+            if (createdStudent) {
+              await Course.updateMany(
+                { students: createdStudent._id },
+                { $pull: { students: createdStudent._id } }
               );
-            });
+              await Student.findByIdAndDelete(createdStudent._id);
+
+              // Send response to the frontend with success message
+              clients.forEach((client) => {
+                if (client.clientType !== deviceData.email) return;
+                client.send(
+                  JSON.stringify({
+                    event: "enroll_feedback",
+                    payload: {
+                      message: `Enrollment for student with Matric No. ${createdStudent.matricNo} failed`,
+                      error: true,
+                    },
+                  })
+                );
+              });
+            } else {
+              console.error("Student not found in the database for rollback.");
+            }
           } else {
-            console.error("Student not found in the database for rollback.");
+            console.log("Student enrollment succeeded or already handled.");
           }
-        } else {
-          console.log("Student enrollment succeeded or already handled.");
+        } catch (error) {
+          console.error("Error during enrollment rollback:", error);
         }
       }, 60000);
 
       // Emit an 'enroll' event to ESP32 device
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.deviceLocation) return;
         client.send(
           JSON.stringify({
             event: "enroll_request",
@@ -194,6 +203,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
               courseCode,
               matricNo,
               proposedId: `${proposedId}`,
+              deviceData,
             },
           })
         );
@@ -207,7 +217,8 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Enrollment feedback received from ESP32 device:", payload);
 
-    const { courseCode, matricNo, idOnSensor } = payload?.data || {};
+    const { courseCode, matricNo, idOnSensor, deviceData } =
+      payload?.data || {};
 
     // Regular expressions for validation
     const courseCodeRegex = /^[A-Z]{3}\s\d{3}$/; // Matches "ABC 000" format
@@ -217,48 +228,23 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     // Validate courseCode format
     if (!courseCode || !courseCodeRegex.test(courseCode)) {
       // If courseCode is missing or not in expected format, emit an error
-      // refetch the student from the database
-      const createdStudent = await Student.findOne({
-        matricNo: student.matricNo,
-      });
-
-      if (!createdStudent.idOnSensor) {
-        console.log(
-          "Rolling back actions for student with Matric No.",
-          createdStudent.matricNo
+      return clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            event: "enroll_feedback",
+            payload: {
+              message: "Invalid courseCode format received from device",
+              error: true,
+            },
+          })
         );
-
-        // Rollback actions: Delete the created student and remove from course
-        if (createdStudent) {
-          await Course.updateMany(
-            { students: createdStudent._id },
-            { $pull: { students: createdStudent._id } }
-          );
-          await Student.findByIdAndDelete(createdStudent._id);
-
-          // Send response to the frontend with success message
-          return clients.forEach((client) => {
-            client.send(
-              JSON.stringify({
-                event: "enroll_feedback",
-                payload: {
-                  message: `Enrollment failed for Matric No. ${createdStudent.matricNo} due to invalid courseCode format received from device. Please restart the device and try again.`,
-                  error: true,
-                },
-              })
-            );
-          });
-        } else {
-          console.error("Student not found in the database for rollback.");
-        }
-      } else {
-        console.log("Student enrollment succeeded or already handled.");
-      }
+      });
     }
 
     // Validate matricNo format
     if (!matricNo || !matricNoRegex.test(matricNo)) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -270,21 +256,6 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
         );
       });
     }
-
-    // Validate idOnSensor format
-    // if (!idOnSensor || !idOnSensorRegex.test(idOnSensor)) {
-    //   return clients.forEach((client) => {
-    //     client.send(
-    //       JSON.stringify({
-    //         event: "enroll_feedback",
-    //         payload: {
-    //           message: "Invalid idOnSensor format received from device",
-    //           error: true,
-    //         },
-    //       })
-    //     );
-    //   });
-    // }
 
     // Find the student by matricNo
     let student = await Student.findOne({ matricNo });
@@ -300,6 +271,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
 
       // Send response to the frontend with error message
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -315,6 +287,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     if (payload?.data?.message === "Place finger") {
       // Send response to the frontend with error message
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -339,6 +312,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
 
     // Send response to the frontend with success message
     return clients.forEach((client) => {
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "enroll_feedback",

@@ -10,7 +10,8 @@ const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
 exports.clearFingerprintsWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
-    console.log("Starting to clear all fingerprints with websocket");
+    console.log("Starting to clear all fingerprints with websocket", payload);
+    const { deviceData } = payload;
 
     const levelAdviser = await LevelAdviserUsers.findOne({
       level: payload.level,
@@ -26,6 +27,7 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     // Send response to Web App
     if (payload.clearPhrase !== levelAdviser.clearPhrase) {
       return clients.forEach((client) => {
+        if (client.clientType !== deviceData.email) return;
         client.send(
           JSON.stringify({
             event: "clear_fingerprints_feedback",
@@ -41,20 +43,28 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     // Send response to ESP32
     const response = {
       event: "empty_fingerprints_request",
-      payload: "Requesting to clear all fingerprints",
+      payload: {
+        message: "Requesting to clear all fingerprints",
+        deviceData,
+      },
     };
 
-    clients.forEach((client) => {
+    return clients.forEach((client) => {
+      if (client.clientType !== deviceData.deviceLocation) return;
       client.send(JSON.stringify(response));
     });
   }
 );
 
 exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
-  console.log("Received Clear fingerprints feedback from ESP32 device:");
-
+  console.log(
+    "Received Clear fingerprints feedback from ESP32 device:",
+    payload
+  );
+  const { deviceData } = payload.data;
   if (payload.error) {
     return clients.forEach((client) => {
+      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "clear_fingerprints_feedback",
@@ -133,7 +143,8 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   await Attendance.deleteMany({});
 
   // Send success feedback to clients
-  clients.forEach((client) => {
+  return clients.forEach((client) => {
+    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "clear_fingerprints_feedback",

@@ -7,6 +7,9 @@ router.post("/lecturers", appController.createLecturer);
 
 router.get("/courses/:lecturerEmail", appController.getLecturerCourses);
 
+router.get("/devices", appController.getDevicesConnected);
+// router.post("/devices", appController.createLectureDeviceLocation);
+
 router.get(
   "/courses/:courseCode/attendance",
   appController.getAttendanceRecords

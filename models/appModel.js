@@ -45,15 +45,47 @@ const attendanceSchema = new Schema({
   course: { type: Schema.Types.ObjectId, ref: "Course" },
 });
 
+// Define schema for Device connected
+const DevicesConnectedSchema = new Schema({
+  deviceLocation: {
+    type: String,
+    unique: true,
+    lowercase: true,
+  },
+});
+
+// Define Schema For the
+// const LecturerDeviceLocationSchema = new mongoose.Schema({
+//   email: {
+//     type: String,
+//     required: true,
+//     unique: true,
+//   },
+//   deviceLocation: {
+//     type: String,
+//     required: true,
+//   },
+// });
+
 // Create models
 const Lecturer = mongoose.model("Lecturer", lecturerSchema);
 const Course = mongoose.model("Course", courseSchema);
 const Student = mongoose.model("Student", studentSchema);
 const Attendance = mongoose.model("Attendance", attendanceSchema);
+// const LecturerDeviceLocation = mongoose.model(
+//   "LecturerDeviceLocation",
+//   LecturerDeviceLocationSchema
+// );
+const DevicesConnected = mongoose.model(
+  "DevicesConnected",
+  DevicesConnectedSchema
+);
 
 module.exports = {
   Lecturer,
   Course,
   Student,
   Attendance,
+  DevicesConnected,
+  // LecturerDeviceLocation,
 };

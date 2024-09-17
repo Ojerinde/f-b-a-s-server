@@ -1,5 +1,12 @@
 const catchAsync = require("../utils/catchAsync");
-const { Lecturer, Course, Student, Attendance } = require("../models/appModel");
+const {
+  Lecturer,
+  Course,
+  Student,
+  Attendance,
+  DevicesConnected,
+  LecturerDeviceLocation,
+} = require("../models/appModel");
 const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 
 exports.createLecturer = catchAsync(async (req, res, next) => {
@@ -446,3 +453,47 @@ exports.getCourseReports = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+exports.getDevicesConnected = catchAsync(async (req, res, next) => {
+  console.log("Getting Device Connected ");
+
+  const devicesConnected = await DevicesConnected.find();
+  const modifiedDevicesConected = devicesConnected.map(
+    (device) => device.deviceLocation
+  );
+  console.log(modifiedDevicesConected);
+
+  res.status(200).json({
+    status: "success",
+    devicesConnected: modifiedDevicesConected,
+  });
+});
+
+// exports.createLectureDeviceLocation = catchAsync(async (req, res, next) => {
+//   console.log("Creating Lecturer Device Location ");
+
+//   const { email, deviceLocation } = req.body;
+
+//   let device = await LecturerDeviceLocation.findOne({ email });
+
+//   if (device) {
+//     // Update existing device location
+//     device.deviceLocation = deviceLocation;
+//   } else {
+//     // Create new device location
+//     device = new LecturerDeviceLocation({
+//       email,
+//       deviceLocation,
+//     });
+//   }
+
+//   await device.save();
+
+//   res.status(200).json({
+//     status: "success",
+//     data: {
+//       email: device.email,
+//       deviceLocation: device.deviceLocation,
+//     },
+//   });
+// });

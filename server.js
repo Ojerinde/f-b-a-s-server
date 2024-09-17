@@ -24,12 +24,11 @@ const {
   deleteFingerprintFeedback,
   deleteFingerprintWithWebsocket,
 } = require("./handlers/deleteFingerprintHandler");
+const { DevicesConnected } = require("./models/appModel");
 
 const PORT = 5000;
 
 const httpServer = createServer(app);
-
-const clients = new Set();
 
 // Initialize WebSocket server
 const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
@@ -37,14 +36,38 @@ const wss = new WebSocket.Server({ server: httpServer, path: "/ws" });
 wss.on("connection", (ws) => {
   console.log("A client is connected");
 
-  clients.add(ws);
+  // Temporary property to store client type
+  ws.clientType = null;
+  ws.source = null;
 
   // Handle incoming messages
-  ws.on("message", (message) => {
+  ws.on("message", async (message) => {
     const data = JSON.parse(message);
-    console.log(`${data?.event} event received from client`);
+    console.log(
+      `${data?.event} event with ${data?.payload} received from client`
+    );
+
+    const clients = wss.clients;
 
     switch (data?.event) {
+      case "identify":
+        console.log(`Client identified as:`, data);
+        ws.clientType = data.clientType.toLowerCase();
+        ws.source = data.source.toLowerCase();
+
+        if (data.source === "web_app" && data.clientType) {
+        }
+
+        if (data.source === "hardware" && data.clientType) {
+          const existingDevice = await DevicesConnected.findOne({
+            deviceLocation: data.clientType.toLowerCase(),
+          });
+          if (existingDevice) return;
+          await DevicesConnected.create({
+            deviceLocation: data.clientType.toLowerCase(),
+          });
+        }
+        break;
       case "enroll":
         enrollStudentWithWebsocket(ws, clients, data.payload);
         break;
@@ -52,7 +75,7 @@ wss.on("connection", (ws) => {
         takeAttendanceWithWebsocket(ws, clients, data.payload);
         break;
       case "esp32_data":
-        esp32DetailsWithWebsocket(ws, clients);
+        esp32DetailsWithWebsocket(ws, clients, data.payload);
         break;
       case "clear_fingerprints":
         clearFingerprintsWithWebsocket(ws, clients, data.payload);
