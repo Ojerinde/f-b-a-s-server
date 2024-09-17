@@ -8,7 +8,8 @@ router.post("/lecturers", appController.createLecturer);
 router.get("/courses/:lecturerEmail", appController.getLecturerCourses);
 
 router.get("/devices", appController.getDevicesConnected);
-// router.post("/devices", appController.createLectureDeviceLocation);
+router.post("/devices", appController.createLectureDeviceLocation);
+router.get("/devices/:email", appController.getLectureDeviceLocation);
 
 router.get(
   "/courses/:courseCode/attendance",

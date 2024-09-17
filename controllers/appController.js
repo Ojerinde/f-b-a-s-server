@@ -469,31 +469,46 @@ exports.getDevicesConnected = catchAsync(async (req, res, next) => {
   });
 });
 
-// exports.createLectureDeviceLocation = catchAsync(async (req, res, next) => {
-//   console.log("Creating Lecturer Device Location ");
+exports.createLectureDeviceLocation = catchAsync(async (req, res, next) => {
+  console.log("Creating Lecturer Device Location ");
 
-//   const { email, deviceLocation } = req.body;
+  const { email, deviceLocation } = req.body;
 
-//   let device = await LecturerDeviceLocation.findOne({ email });
+  let device = await LecturerDeviceLocation.findOne({ email });
 
-//   if (device) {
-//     // Update existing device location
-//     device.deviceLocation = deviceLocation;
-//   } else {
-//     // Create new device location
-//     device = new LecturerDeviceLocation({
-//       email,
-//       deviceLocation,
-//     });
-//   }
+  if (device) {
+    // Update existing device location
+    device.deviceLocation = deviceLocation;
+  } else {
+    // Create new device location
+    device = new LecturerDeviceLocation({
+      email,
+      deviceLocation,
+    });
+  }
 
-//   await device.save();
+  await device.save();
 
-//   res.status(200).json({
-//     status: "success",
-//     data: {
-//       email: device.email,
-//       deviceLocation: device.deviceLocation,
-//     },
-//   });
-// });
+  res.status(200).json({
+    status: "success",
+    data: {
+      email: device.email,
+      deviceLocation: device.deviceLocation,
+    },
+  });
+});
+
+exports.getLectureDeviceLocation = catchAsync(async (req, res, next) => {
+  console.log("Getting Lecturer Device Location for", req.params);
+
+  const { email } = req.params;
+
+  let lecturerDevice = await LecturerDeviceLocation.findOne({ email });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      deviceLocation: lecturerDevice.deviceLocation,
+    },
+  });
+});

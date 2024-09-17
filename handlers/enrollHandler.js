@@ -1,20 +1,28 @@
 const { Course, Student } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
 const Email = require("../utils/email");
+const {
+  createOngoingRequest,
+  deleteOngoingRequest,
+  findOngoingRequest,
+} = require("../utils/ongoingRequest");
 
 // Endpoint for enrolling a student into a course with WebSocket.
 exports.enrollStudentWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log("Starting enrollment process with WebSocket for", payload);
 
-    const { courseCode, name, matricNo, deviceData } = payload;
+    const { courseCode, name, matricNo, email, deviceLocation } = payload;
+
+    // Add this as an OngoingRequest
+    await createOngoingRequest(email, courseCode, "enroll_response");
 
     // Find the course by its course code
     const course = await Course.findOne({ courseCode });
 
     if (!course) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -33,7 +41,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
     if (student) {
       if (student.name !== name) {
         return clients.forEach((client) => {
-          if (client.clientType !== deviceData.email) return;
+          if (client.clientType !== email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -48,7 +56,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (student.courses.includes(course._id)) {
         return clients.forEach((client) => {
-          if (client.clientType !== deviceData.email) return;
+          if (client.clientType !== email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -71,7 +79,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
       await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -113,7 +121,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       if (!proposedId) {
         return clients.forEach((client) => {
-          if (client.clientType !== deviceData.email) return;
+          if (client.clientType !== email) return;
           client.send(
             JSON.stringify({
               event: "enroll_feedback",
@@ -171,7 +179,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
               // Send response to the frontend with success message
               clients.forEach((client) => {
-                if (client.clientType !== deviceData.email) return;
+                if (client.clientType !== email) return;
                 client.send(
                   JSON.stringify({
                     event: "enroll_feedback",
@@ -195,7 +203,7 @@ exports.enrollStudentWithWebsocket = catchAsync(
 
       // Emit an 'enroll' event to ESP32 device
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.deviceLocation) return;
+        if (client.clientType !== deviceLocation) return;
         client.send(
           JSON.stringify({
             event: "enroll_request",
@@ -203,7 +211,6 @@ exports.enrollStudentWithWebsocket = catchAsync(
               courseCode,
               matricNo,
               proposedId: `${proposedId}`,
-              deviceData,
             },
           })
         );
@@ -217,8 +224,12 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Enrollment feedback received from ESP32 device:", payload);
 
-    const { courseCode, matricNo, idOnSensor, deviceData } =
-      payload?.data || {};
+    const { courseCode, matricNo, idOnSensor } = payload?.data || {};
+
+    const foundRequest = await findOngoingRequest(
+      courseCode,
+      "enroll_response"
+    );
 
     // Regular expressions for validation
     const courseCodeRegex = /^[A-Z]{3}\s\d{3}$/; // Matches "ABC 000" format
@@ -229,6 +240,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     if (!courseCode || !courseCodeRegex.test(courseCode)) {
       // If courseCode is missing or not in expected format, emit an error
       return clients.forEach((client) => {
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -244,7 +256,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     // Validate matricNo format
     if (!matricNo || !matricNoRegex.test(matricNo)) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -271,7 +283,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
 
       // Send response to the frontend with error message
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -287,7 +299,7 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     if (payload?.data?.message === "Place finger") {
       // Send response to the frontend with error message
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "enroll_feedback",
@@ -310,9 +322,11 @@ exports.getEnrollFeedbackFromEsp32 = catchAsync(
     // Send Mail to student
     await new Email(student, "").sendEnrollmentSuccessful(course.courseCode);
 
+    await deleteOngoingRequest(courseCode, "enroll_response");
+
     // Send response to the frontend with success message
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
+      if (client.clientType !== foundRequest?.email) return;
       client.send(
         JSON.stringify({
           event: "enroll_feedback",

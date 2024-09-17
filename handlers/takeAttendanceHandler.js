@@ -4,6 +4,11 @@ const catchAsync = require("../utils/catchAsync");
 const {
   checkAttendanceAndNotify,
 } = require("../utils/sendNotificationForMissedAttendance");
+const {
+  createOngoingRequest,
+  deleteOngoingRequest,
+  findOngoingRequest,
+} = require("../utils/ongoingRequest");
 
 const convertToUTC = (lagosTime) => {
   const date = new Date(lagosTime);
@@ -14,14 +19,17 @@ const convertToUTC = (lagosTime) => {
 exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
   console.log("Started attendance marking process with Websocket for", payload);
 
-  const { courseCode, startTime, endTime, deviceData } = payload;
+  const { courseCode, startTime, endTime, deviceLocation, email } = payload;
+
+  // Add this as an OngoingRequest
+  await createOngoingRequest(email, courseCode, "attendance_response");
 
   // Find the course by its course code
   const course = await Course.findOne({ courseCode }).populate("students");
 
   if (!course) {
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
+      if (client.clientType !== email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -49,7 +57,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   if (existingAttendance) {
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
+      if (client.clientType !== email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
@@ -64,7 +72,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   // Send feedback to the lecturer that the attendance has been scheduled successfully
   clients.forEach((client) => {
-    if (client.clientType !== deviceData.email) return;
+    if (client.clientType !== email) return;
     client.send(
       JSON.stringify({
         event: "attendance_feedback",
@@ -78,8 +86,6 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
   // Schedule the job to emit the attendance event at the start time
   schedule.scheduleJob(scheduleDate, async () => {
-    console.log("Schedule Attendance marking started for", course.courseCode);
-
     const registeredStudentsId = course.students.map(
       (student) => student.idOnSensor
     );
@@ -90,7 +96,7 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 
     if (enrolledStudentsId.length === 0) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -110,12 +116,11 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
         startTime: startDate.toISOString(),
         stopTime: endDate.toISOString(),
         enrolledStudentsId: enrolledStudentsId,
-        deviceData,
       },
     });
 
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.deviceLocation) return;
+      if (client.clientType !== deviceLocation) return;
       client.send(
         JSON.stringify({
           event: "attendance_request",
@@ -124,7 +129,6 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
             startTime: startDate.toISOString(),
             stopTime: endDate.toISOString(),
             enrolledStudentsId: enrolledStudentsId,
-            deviceData,
           },
         })
       );
@@ -135,11 +139,16 @@ exports.takeAttendanceWithWebsocket = async (ws, clients, payload) => {
 exports.getAttendanceFeedbackFromEsp32 = catchAsync(
   async (ws, clients, payload) => {
     console.log("Attendance response received from ESP32", payload);
-    const { deviceData } = payload.data;
+    const { courseCode, students, date } = payload.data;
+
+    const foundRequest = await findOngoingRequest(
+      courseCode,
+      "attendance_response"
+    );
 
     if (payload.error) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
@@ -154,12 +163,12 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (payload?.data.message === "Downloaded successfully") {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `${payload.data.courseCode} data downloaded successfully`,
+              message: `${courseCode} data downloaded successfully`,
               error: false,
             },
           })
@@ -169,17 +178,17 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     // Find the course by its course code
     const course = await Course.findOne({
-      courseCode: payload.data.courseCode,
+      courseCode: courseCode,
     }).populate("students");
 
     if (!course) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `Course ${payload.data.courseCode} not found`,
+              message: `Course ${courseCode} not found`,
               error: true,
             },
           })
@@ -187,24 +196,23 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
       });
     }
 
-    // const attendanceDate = payload.data.date;
-    const attendanceDate = new Date(payload.data.date);
+    // const attendanceDate = date;
+    const attendanceDate = new Date(date);
 
     // Check if there is an attendance for the exact date and time
     const existingAttendance = await Attendance.findOne({
       course: course._id,
       date: attendanceDate,
     });
-    console.log("Existing attendance", existingAttendance);
 
     if (existingAttendance) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `Attendance has already been marked for ${payload.data.courseCode} at ${payload.data.date}`,
+              message: `Attendance has already been marked for ${courseCode} at ${date}`,
               error: true,
             },
           })
@@ -214,7 +222,7 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     // Find students based on their idOnSensor
     const studentRecords = await Promise.all(
-      payload.data.students.map(async (stu) => {
+      students.map(async (stu) => {
         const student = await Student.findOne({ idOnSensor: stu.idOnSensor });
 
         if (student) {
@@ -231,12 +239,12 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
 
     if (validStudentRecords.length === 0) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "attendance_feedback",
             payload: {
-              message: `No valid students found for course ${payload.data.courseCode}`,
+              message: `No valid students found for course ${courseCode}`,
               error: true,
             },
           })
@@ -258,22 +266,20 @@ exports.getAttendanceFeedbackFromEsp32 = catchAsync(
     await course.save();
 
     clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
+      if (client.clientType !== foundRequest?.email) return;
       client.send(
         JSON.stringify({
           event: "attendance_feedback",
           payload: {
-            message: `Attendance record for ${payload.data.courseCode} has been saved successfully`,
+            message: `Attendance record for ${courseCode} has been saved successfully`,
             error: false,
           },
         })
       );
     });
+    await deleteOngoingRequest(courseCode, "attendance_response");
 
     // Send notification to students who missed three consecutive classes
-    return checkAttendanceAndNotify(
-      payload.data.courseCode,
-      validStudentRecords
-    );
+    return checkAttendanceAndNotify(courseCode, validStudentRecords);
   }
 );

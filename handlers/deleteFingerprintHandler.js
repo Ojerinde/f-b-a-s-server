@@ -1,10 +1,22 @@
 const { Student, Course, Attendance } = require("../models/appModel");
 const catchAsync = require("../utils/catchAsync");
+const {
+  createOngoingRequest,
+  deleteOngoingRequest,
+  findOngoingRequest,
+} = require("../utils/ongoingRequest");
 
 exports.deleteFingerprintWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log("Deleting Fingerprint for students:", payload);
-    const { deviceData } = payload;
+    const { email, courseCode, deviceLocation } = payload;
+
+    // Add this as an OngoingRequest
+    await createOngoingRequest(
+      email,
+      courseCode,
+      "delete_fingerprint_response"
+    );
 
     // Find students based on matriculation numbers
     const students = await Student.find({
@@ -14,7 +26,7 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
     if (!students || students.length === 0) {
       // Send feedback if no students found
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== email) return;
         client.send(
           JSON.stringify({
             event: "delete_fingerprint_feedback",
@@ -28,19 +40,16 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
       });
     }
 
-    const deletePayload = {
-      studentsIds: students.map((student) => student.idOnSensor),
-      courseCode: payload.courseCode,
-      deviceData,
-    };
-
     // Emit event to ESP32
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.deviceLocation) return;
+      if (client.clientType !== deviceLocation) return;
       client.send(
         JSON.stringify({
           event: "delete_fingerprint_request",
-          payload: deletePayload,
+          payload: {
+            studentsIds: students.map((student) => student.idOnSensor),
+            courseCode: payload.courseCode,
+          },
         })
       );
     });
@@ -50,18 +59,16 @@ exports.deleteFingerprintWithWebsocket = catchAsync(
 exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Fingerprint removal feedback received:", payload);
 
-  const { studentsIds, courseCode, deviceData } = payload;
-  console.log(
-    "Students IDs:",
-    studentsIds,
-    studentsIds.length,
-    "Course Code:",
-    courseCode
+  const { studentsIds, courseCode } = payload;
+
+  const foundRequest = await findOngoingRequest(
+    courseCode,
+    "delete_fingerprint_response"
   );
 
   if (payload.error) {
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
+      if (client.clientType !== foundRequest?.email) return;
       client.send(
         JSON.stringify({
           event: "delete_fingerprint_feedback",
@@ -83,7 +90,7 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
 
     if (!student) {
       clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== foundRequest?.email) return;
         client.send(
           JSON.stringify({
             event: "delete_fingerprint_feedback",
@@ -127,9 +134,11 @@ exports.deleteFingerprintFeedback = catchAsync(async (ws, clients, payload) => {
     }
   }
 
+  await deleteOngoingRequest(courseCode, "delete_fingerprint_response");
+
   // Send success feedback to clients
   return clients.forEach((client) => {
-    if (client.clientType !== deviceData.email) return;
+    if (client.clientType !== foundRequest?.email) return;
     client.send(
       JSON.stringify({
         event: "delete_fingerprint_feedback",

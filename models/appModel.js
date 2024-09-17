@@ -55,27 +55,44 @@ const DevicesConnectedSchema = new Schema({
 });
 
 // Define Schema For the
-// const LecturerDeviceLocationSchema = new mongoose.Schema({
-//   email: {
-//     type: String,
-//     required: true,
-//     unique: true,
-//   },
-//   deviceLocation: {
-//     type: String,
-//     required: true,
-//   },
-// });
+const LecturerDeviceLocationSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  deviceLocation: {
+    type: String,
+    required: true,
+  },
+});
+
+// Define Schema For the
+const OngoingRequestSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+  },
+  courseCode: {
+    type: String,
+    required: true,
+  },
+  eventFeedbackName: {
+    type: String,
+    required: true,
+  },
+});
 
 // Create models
 const Lecturer = mongoose.model("Lecturer", lecturerSchema);
 const Course = mongoose.model("Course", courseSchema);
 const Student = mongoose.model("Student", studentSchema);
 const Attendance = mongoose.model("Attendance", attendanceSchema);
-// const LecturerDeviceLocation = mongoose.model(
-//   "LecturerDeviceLocation",
-//   LecturerDeviceLocationSchema
-// );
+const LecturerDeviceLocation = mongoose.model(
+  "LecturerDeviceLocation",
+  LecturerDeviceLocationSchema
+);
+const OngoingRequest = mongoose.model("OngoingRequest", OngoingRequestSchema);
 const DevicesConnected = mongoose.model(
   "DevicesConnected",
   DevicesConnectedSchema
@@ -87,5 +104,6 @@ module.exports = {
   Student,
   Attendance,
   DevicesConnected,
-  // LecturerDeviceLocation,
+  LecturerDeviceLocation,
+  OngoingRequest,
 };

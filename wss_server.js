@@ -42,26 +42,6 @@ const httpsServer = createServer(options, app);
 
 let wss;
 
-const activeDevices = new Map();
-// Function to check inactive devices
-const checkInactiveDevices = async () => {
-  const now = Date.now();
-
-  for (const [deviceLocation, lastPingTime] of activeDevices) {
-    cl;
-    if (now - lastPingTime > 15000) {
-      if (!deviceLocation) continue;
-      console.log(
-        `Device at ${deviceLocation} is inactive for more than 15 seconds. Removing...`
-      );
-
-      await DevicesConnected.deleteOne({ deviceLocation });
-
-      activeDevices.delete(deviceLocation);
-    }
-  }
-};
-
 // Initialize WebSocket server
 function initWebSocketServer() {
   wss = new WebSocket.Server({ server: httpsServer, path: "/ws" });
@@ -136,26 +116,20 @@ function initWebSocketServer() {
       }
     });
 
-    ws.on("ping", (buffer) => {
-      const locationUtf8 = buffer.toString("utf8");
-      console.log(
-        "Received ping from hardware",
-        buffer,
-        "location",
-        locationUtf8
-      );
-
-      // Update the last ping time for the device
-      activeDevices.set(locationUtf8.toLowerCase(), Date.now());
-    });
+    // ws.on("ping", (buffer) => {
+    //   const locationUtf8 = buffer.toString("utf8");
+    //   console.log(
+    //     "Received ping from hardware",
+    //     buffer,
+    //     "location",
+    //     locationUtf8
+    //   );
+    // });
 
     ws.on("close", async () => {
       console.log(`${ws?.clientType} client is disconnected`);
     });
   });
-
-  // Periodically check for inactive devices
-  // setInterval(checkInactiveDevices, 5000);
 
   // Start the cleanup process after a timeout period
   setTimeout(async () => {

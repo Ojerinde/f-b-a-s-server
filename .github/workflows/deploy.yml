@@ -3,7 +3,7 @@ name: Deploy to AWS EC2
 on:
   push:
     branches:
-      - revert-to-commit
+      - main
 
 jobs:
   deploy:
@@ -39,7 +39,7 @@ jobs:
             cd /home/ubuntu/f-b-a-s-server
 
             # Pull the latest code from the repository
-            git pull origin revert-to-commit
+            git pull origin main
 
             # Install dependencies
             npm install

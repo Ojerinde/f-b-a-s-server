@@ -11,23 +11,31 @@ const LevelAdviserUsers = require("../models/levelAdviserUserModel");
 exports.clearFingerprintsWithWebsocket = catchAsync(
   async (ws, clients, payload) => {
     console.log("Starting to clear all fingerprints with websocket", payload);
-    const { deviceData } = payload;
+    const { deviceLocation, email } = payload;
 
     const levelAdviser = await LevelAdviserUsers.findOne({
       level: payload.level,
     }).select("+clearPhrase");
 
     if (!levelAdviser) {
-      return res.status(404).json({
-        status: "fail",
-        message: "Level adviser not found for the specified level",
+      return clients.forEach((client) => {
+        if (client.clientType !== email) return;
+        client.send(
+          JSON.stringify({
+            event: "clear_fingerprints_feedback",
+            payload: {
+              message: `Level adviser for the specified level is not found`,
+              error: true,
+            },
+          })
+        );
       });
     }
 
     // Send response to Web App
     if (payload.clearPhrase !== levelAdviser.clearPhrase) {
       return clients.forEach((client) => {
-        if (client.clientType !== deviceData.email) return;
+        if (client.clientType !== email) return;
         client.send(
           JSON.stringify({
             event: "clear_fingerprints_feedback",
@@ -41,17 +49,17 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     }
 
     // Send response to ESP32
-    const response = {
-      event: "empty_fingerprints_request",
-      payload: {
-        message: "Requesting to clear all fingerprints",
-        deviceData,
-      },
-    };
-
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.deviceLocation) return;
-      client.send(JSON.stringify(response));
+      console.log("Client type", client.clientType, deviceLocation);
+      if (client.clientType !== deviceLocation) return;
+      client.send(
+        JSON.stringify({
+          event: "empty_fingerprints_request",
+          payload: {
+            message: "Requesting to clear all fingerprints",
+          },
+        })
+      );
     });
   }
 );
@@ -61,10 +69,8 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
     "Received Clear fingerprints feedback from ESP32 device:",
     payload
   );
-  const { deviceData } = payload.data;
   if (payload.error) {
     return clients.forEach((client) => {
-      if (client.clientType !== deviceData.email) return;
       client.send(
         JSON.stringify({
           event: "clear_fingerprints_feedback",
@@ -144,7 +150,6 @@ exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
 
   // Send success feedback to clients
   return clients.forEach((client) => {
-    if (client.clientType !== deviceData.email) return;
     client.send(
       JSON.stringify({
         event: "clear_fingerprints_feedback",
