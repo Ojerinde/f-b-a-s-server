@@ -49,6 +49,7 @@ exports.clearFingerprintsWithWebsocket = catchAsync(
     });
   }
 );
+
 exports.clearFingerprintsFeedback = catchAsync(async (ws, clients, payload) => {
   console.log("Received Clear fingerprints feedback from ESP32 device:");
 
