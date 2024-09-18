@@ -79,7 +79,21 @@ function initWebSocketServer() {
             await DevicesConnected.create({
               deviceLocation: deviceLocation,
             });
-            console.log(`Device ${deviceLocation} added to the database.`);
+            // Start tracking the device immediately upon identification
+            if (!connectedDevices[deviceLocation]) {
+              connectedDevices[deviceLocation] = {
+                timeout: setTimeout(async () => {
+                  console.log(
+                    `Device ${deviceLocation} has not sent a ping in 10 seconds. Removing...`
+                  );
+                  await DevicesConnected.findOneAndDelete({ deviceLocation });
+                  delete connectedDevices[deviceLocation];
+                }, 10000), // 10-second timeout
+              };
+              console.log(
+                `Device ${deviceLocation} added and is being tracked.`
+              );
+            }
           }
           break;
         case "enroll":
@@ -127,6 +141,7 @@ function initWebSocketServer() {
         "location",
         locationUtf8
       );
+      console.log("Connected Devices", connectedDevices);
 
       if (connectedDevices[locationUtf8]) {
         console.log(`Ping received from ${locationUtf8}, resetting timeout.`);
@@ -160,7 +175,6 @@ function initWebSocketServer() {
             delete connectedDevices[locationUtf8];
           }, 10000),
         };
-        console.log("Connected Devices", connectedDevices);
         console.log(`Device ${locationUtf8} added and is being tracked.`);
       }
     });
@@ -173,8 +187,6 @@ function initWebSocketServer() {
   // Start the cleanup process after a timeout period
   setTimeout(async () => {
     try {
-      console.log("Starting enrollment cleanup process...");
-
       // Find students whose idOnSensor is not set
       const studentsToClean = await Student.find({
         idOnSensor: { $exists: false },
@@ -196,8 +208,6 @@ function initWebSocketServer() {
           ),
         ]);
       }
-
-      console.log("Enrollment cleanup process completed.");
     } catch (error) {
       console.error("Error during enrollment cleanup:", error);
     }
