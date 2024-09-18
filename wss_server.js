@@ -128,6 +128,7 @@ function initWebSocketServer() {
         locationUtf8
       );
       console.log("Connected Devices", connectedDevices);
+
       if (connectedDevices[locationUtf8]) {
         clearTimeout(connectedDevices[locationUtf8].timeout);
 
