@@ -127,7 +127,6 @@ function initWebSocketServer() {
         "location",
         locationUtf8
       );
-      console.log("Connected Devices", connectedDevices);
 
       if (connectedDevices[locationUtf8]) {
         clearTimeout(connectedDevices[locationUtf8].timeout);
@@ -142,6 +141,7 @@ function initWebSocketServer() {
           delete connectedDevices[locationUtf8];
         }, 15000);
       } else {
+        console.log(`Tracking new device ${locationUtf8} for pings.`);
         connectedDevices[locationUtf8] = {
           timeout: setTimeout(async () => {
             console.log(
@@ -153,7 +153,7 @@ function initWebSocketServer() {
             delete connectedDevices[locationUtf8];
           }, 15000),
         };
-
+        console.log("Connected Devices", connectedDevices);
         console.log(`Device ${locationUtf8} added and is being tracked.`);
       }
     });
