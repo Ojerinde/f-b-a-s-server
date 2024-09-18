@@ -116,15 +116,15 @@ function initWebSocketServer() {
       }
     });
 
-    // ws.on("ping", (buffer) => {
-    //   const locationUtf8 = buffer.toString("utf8");
-    //   console.log(
-    //     "Received ping from hardware",
-    //     buffer,
-    //     "location",
-    //     locationUtf8
-    //   );
-    // });
+    ws.on("ping", (buffer) => {
+      const locationUtf8 = buffer.toString("utf8");
+      console.log(
+        "Received ping from hardware",
+        buffer,
+        "location",
+        locationUtf8
+      );
+    });
 
     ws.on("close", async () => {
       console.log(`${ws?.clientType} client is disconnected`);
