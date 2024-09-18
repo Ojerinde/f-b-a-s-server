@@ -504,6 +504,7 @@ exports.getLectureDeviceLocation = catchAsync(async (req, res, next) => {
   const { email } = req.params;
 
   let lecturerDevice = await LecturerDeviceLocation.findOne({ email });
+  console.log("You have not before", lecturerDevice);
 
   if (!lecturerDevice) {
     return res.status(404).json({
@@ -511,7 +512,7 @@ exports.getLectureDeviceLocation = catchAsync(async (req, res, next) => {
         "You have not selected the location of the device to communicate with",
     });
   }
-  console.log("You have not", lecturerDevice);
+  console.log("You have not after", lecturerDevice);
   return res.status(200).json({
     data: {
       deviceLocation: lecturerDevice?.deviceLocation,
