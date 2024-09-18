@@ -129,29 +129,36 @@ function initWebSocketServer() {
       );
 
       if (connectedDevices[locationUtf8]) {
+        console.log(`Ping received from ${locationUtf8}, resetting timeout.`);
+
+        console.log(
+          `Clearing previous timeout for ${locationUtf8}, Timeout ID:`,
+          connectedDevices[locationUtf8].timeout._idleTimeout
+        );
+
         clearTimeout(connectedDevices[locationUtf8].timeout);
 
         connectedDevices[locationUtf8].timeout = setTimeout(async () => {
           console.log(
-            `Device ${locationUtf8} has not sent a ping in 15 seconds. Removing...`
+            `Device ${locationUtf8} has not sent a ping in 10 seconds. Removing...`
           );
           await DevicesConnected.findOneAndDelete({
             deviceLocation: locationUtf8,
           });
           delete connectedDevices[locationUtf8];
-        }, 15000);
+        }, 10000);
       } else {
         console.log(`Tracking new device ${locationUtf8} for pings.`);
         connectedDevices[locationUtf8] = {
           timeout: setTimeout(async () => {
             console.log(
-              `Device ${locationUtf8} has not sent a ping in 15 seconds. Removing...`
+              `Device ${locationUtf8} has not sent a ping in 10 seconds. Removing...`
             );
             await DevicesConnected.findOneAndDelete({
               deviceLocation: locationUtf8,
             });
             delete connectedDevices[locationUtf8];
-          }, 15000),
+          }, 10000),
         };
         console.log("Connected Devices", connectedDevices);
         console.log(`Device ${locationUtf8} added and is being tracked.`);
