@@ -41,6 +41,7 @@ const options = {
 const httpsServer = createServer(options, app);
 
 let wss;
+const connectedDevices = {};
 
 // Initialize WebSocket server
 function initWebSocketServer() {
@@ -70,13 +71,15 @@ function initWebSocketServer() {
           }
 
           if (data.source === "hardware" && data.clientType) {
+            const deviceLocation = data.clientType.toLowerCase();
             const existingDevice = await DevicesConnected.findOne({
-              deviceLocation: data.clientType.toLowerCase(),
+              deviceLocation: deviceLocation,
             });
             if (existingDevice) return;
             await DevicesConnected.create({
-              deviceLocation: data.clientType.toLowerCase(),
+              deviceLocation: deviceLocation,
             });
+            console.log(`Device ${deviceLocation} added to the database.`);
           }
           break;
         case "enroll":
@@ -116,14 +119,42 @@ function initWebSocketServer() {
       }
     });
 
-    ws.on("ping", (buffer) => {
-      const locationUtf8 = buffer.toString("utf8");
+    ws.on("ping", async (buffer) => {
+      const locationUtf8 = buffer.toString("utf8").toLowerCase();
       console.log(
         "Received ping from hardware",
         buffer,
         "location",
         locationUtf8
       );
+
+      if (connectedDevices[locationUtf8]) {
+        clearTimeout(connectedDevices[locationUtf8].timeout);
+
+        connectedDevices[locationUtf8].timeout = setTimeout(async () => {
+          console.log(
+            `Device ${locationUtf8} has not sent a ping in 15 seconds. Removing...`
+          );
+          await DevicesConnected.findOneAndDelete({
+            deviceLocation: locationUtf8,
+          });
+          delete connectedDevices[locationUtf8];
+        }, 15000);
+      } else {
+        connectedDevices[locationUtf8] = {
+          timeout: setTimeout(async () => {
+            console.log(
+              `Device ${locationUtf8} has not sent a ping in 15 seconds. Removing...`
+            );
+            await DevicesConnected.findOneAndDelete({
+              deviceLocation: locationUtf8,
+            });
+            delete connectedDevices[locationUtf8];
+          }, 15000),
+        };
+
+        console.log(`Device ${locationUtf8} added and is being tracked.`);
+      }
     });
 
     ws.on("close", async () => {
